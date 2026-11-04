@@ -111,17 +111,9 @@ function rollDice(){document.getElementById('dice').textContent=['⚀','⚁','�
 draw();
 </script>
 
-<script src="https://discord.com/assets/embedded-app-sdk.js"></script>
-<script>
-(async () => {
-  if (!window.DiscordSDK) return;
-  const discordSdk = new window.DiscordSDK.DiscordSDK({
-    clientId: "YOUR_DISCORD_APPLICATION_ID"
-  });
-  await discordSdk.ready();
-  console.log("Gaming Network connected to Discord Activity");
-})();
-</script>
 
+
+<div id="discord-status" style="color:#d4af37;text-align:center;padding:8px">Opening Gaming Network...</div>
+<script type="module" src="./activity-sdk.js"></script>
 </body>
 </html>
