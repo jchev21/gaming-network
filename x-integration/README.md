@@ -27,3 +27,23 @@ Open `demo.html` in a browser. This demo has a real local interactive form, demo
 
 ## Remaining work
 See the project issue: https://github.com/jchev21/gaming-network/issues/2
+
+## Phase 2 — read-only mention listener (prepared, not deployed)
+
+This branch now includes `listener.mjs`, `listener.test.mjs`, `package.json` and a Dockerfile. A separate Railway service named `x-game-intake` is **STAGED** in the existing Gaming Network project. It has NOT been deployed and is not polling X. The current Discord bot and website remain untouched.
+
+**Credentials must be configured directly inside the X service's Railway Variables, not committed or sent through chat:**
+
+- `X_API_BEARER_TOKEN`: your approved X Developer App's bearer token (read API); never a Discord token
+- `X_HANDLE`: `jordan__chev` (already staged)
+- `X_USER_ID`: optional; if blank, the listener resolves it from X's user lookup API on the first authorized poll
+- `X_ADMIN_TOKEN`: a long random private admin token before enabling administrative endpoints
+- `X_POLL_ENABLED`: `false` by default — **no automatic API requests**
+- `X_POLL_SECONDS`: `120` when deliberately enabled; costs and quotas apply
+- `DATA_DIR`: `/data`, backed by the staged `x-intake-data` Railway volume
+
+When explicitly deployed, the service exposes `GET /health` for Railway health checks. It exposes `GET /admin/mentions` and `POST /admin/poll` only behind `Authorization: Bearer X_ADMIN_TOKEN`, and no public domain should be assigned. The first poll establishes a starting ID and **does not act on historical mentions**. Subsequent polls store only matching, deduplicated game requests marked `awaiting_review`. It does NOT post to X, issue codes, create games, or call the Discord API.
+
+For the actual mention-to-lobby workflow, add owner account OAuth user authorization, a signed one-use setup link, an authenticated public website, API-backed player identity/lobby state, retry/anti-spam safeguards, and an opt-in confirmation step before posting a reply. Follow X API rate limits and pay-per-use billing before enabling scheduled polling.
+
+Code sanity check: `node listener.test.mjs`. Docker builds run the same test automatically. Do not expose the admin endpoint or use a predictable admin token.
