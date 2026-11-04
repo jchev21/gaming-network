@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Gaming Network | X Game Intake Preview</title>
+<style>
+:root{color-scheme:dark;--bg:#090b13;--card:#151629;--edge:#343153;--p:#aa8dff;--txt:#f5f3ff;--mute:#a8a6c2;--gold:#f2cc74;--ok:#86e3bd}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 15% -15%,#30224f 0,transparent 42%),radial-gradient(ellipse at 100% 5%,#1a2447 0,transparent 35%),var(--bg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--txt);min-height:100vh}
+header,main,footer{max-width:1160px;margin:auto;padding-left:22px;padding-right:22px}
+header{padding-top:30px;padding-bottom:24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-size:20px;letter-spacing:.12em;font-weight:900}.brand span{color:var(--p)}
+.pill{font-size:11px;font-weight:800;letter-spacing:.08em;padding:8px 11px;border-radius:24px;border:1px solid #635183;background:#34244f;color:#e5d4ff}
+main{padding-bottom:42px}
+.hero{padding:18px 0 26px}
+.kicker{font-size:12px;font-weight:800;letter-spacing:.16em;color:var(--p);text-transform:uppercase}
+h1{font-size:clamp(28px,5vw,47px);letter-spacing:-.04em;line-height:1.1;margin:10px 0 14px}
+h1 em{font-style:normal;color:var(--p)}
+.sub{color:var(--mute);max-width:730px}
+.grid{display:grid;grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);gap:20px}
+.panel{background:linear-gradient(155deg,#1b1a30,#111322);border:1px solid var(--edge);border-radius:18px;padding:24px;box-shadow:0 18px 45px #03030b44}
+.panel h2{font-size:18px;margin:0 0 4px}
+.caption{color:var(--mute);font-size:13px;margin:0 0 20px}
+label{display:block;font-size:12px;color:#d8d3f1;font-weight:700;margin:14px 0 7px}
+input,select{width:100%;min-height:45px;padding:10px 12px;color:var(--txt);background:#0e1020;border:1px solid #494262;border-radius:10px;font:inherit}
+input:focus,select:focus{outline:2px solid #977be4;outline-offset:1px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;min-height:43px;font-weight:800;padding:10px 15px}
+.primary{color:#0d0920;background:linear-gradient(110deg,#d2adff,#9582ff);width:100%;margin-top:18px}
+.secondary{color:#e2d9ff;background:#2f2849;border:1px solid #67548d}
+button:disabled{opacity:.5;cursor:not-allowed}
+.box{background:#0f1120;border:1px solid #333052;border-radius:12px;padding:14px;margin-top:14px}
+.slate{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:#201e36;border-radius:12px;padding:12px}
+.metric b{font-size:23px;display:block}.metric small{color:var(--mute)}
+.note{margin-top:17px;border-left:3px solid var(--gold);padding:5px 10px;color:#d8cda7;background:#3027184f;font-size:12px}
+small{color:var(--mute)}
+#lobby{display:none}
+#lobby.active{display:block}
+#empty{padding:35px 6px;text-align:center;color:var(--mute)}
+.code{letter-spacing:.1em;color:var(--gold);font-weight:900}
+ul{margin:8px 0 0;padding-left:20px}
+li{padding:3px 0}
+.tag{font-size:11px;font-weight:800;background:#2d3651;color:#c8dbff;border-radius:6px;padding:4px 8px}
+#msg{min-height:22px;margin-top:10px;color:var(--gold)}
+footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.panel{padding:18px}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="brand">GAMING <span>NETWORK</span></div><span class="pill">● PREVIEW — X NOT CONNECTED</span></header>
+<main>
+<div class="hero"><div class="kicker">X → Game Setup → Lobby</div>
+<h1>Launch a game from <em>@jordan__chev</em></h1>
+<p class="sub">Preview how a mention on X can start a game. In production, an authorized bot replies with a secure link. Players visit that link to choose a platform, start a game, and accept entries. This preview runs entirely in your browser.</p>
+</div>
+<div class="grid">
+<section class="panel">
+<h2>01 / Game setup</h2>
+<p class="caption">This is a safe local simulation. No posts, Discord commands, or promo codes are sent.</p>
+<form id="create">
+<div class="two">
+<div><label for="game">Game type</label><select id="game" required><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
+<div><label for="platform">Platform</label><select id="platform" required><option>Discord</option><option>PC</option><option>PlayStation</option><option>Xbox</option><option>Mobile</option><option>Web</option></select></div>
+</div>
+<label for="title">Game title</label><input id="title" placeholder="Friday night game" maxlength="75" required value="Community Game Night">
+<div class="two">
+<div><label for="rule">Entry rule</label><select id="rule"><option value="first">First five people</option><option value="random">Random after five minutes</option></select></div>
+<div><label for="seats">Player limit</label><select id="seats"><option value="5">5 players</option><option value="3">3 players</option><option value="8">8 players</option></select></div>
+</div>
+<label for="privateCode">Optional game / promo code (not stored)</label><input id="privateCode" type="password" autocomplete="off" placeholder="Leave blank for now" maxlength="120">
+<button class="primary" type="submit">Create demo lobby</button>
+</form>
+<p class="note">A real version will require verified X identity, server-side game creation, and protected delivery of eligible codes. Nothing typed here is uploaded.</p>
+</section>
+<section class="panel">
+<h2>02 / Live lobby preview</h2><p class="caption">Join with sample names, try first-come entry or a five-minute draw.</p>
+<div id="empty">Create a demo lobby to preview the join experience.</div>
+<div id="lobby">
+<div class="box"><div class="kicker" id="lobbyGame">GAME</div><h2 id="lobbyTitle">Game</h2><p id="lobbySummary" class="caption"></p>
+<div class="slate"><div class="metric"><small>Confirmed players</small><b id="confirmed">0 / 5</b></div><div class="metric"><small>Entry window</small><b id="timer">Open</b></div></div>
+<p style="margin-bottom:4px"><span class="tag" id="entryTag">FIRST COME</span> <span class="code" id="lobbyCode"></span></p></div>
+<form id="join"><label for="player">Demo player display name</label><div class="two"><input id="player" placeholder="Example: Alex" maxlength="36" required><button class="secondary" type="submit">Join lobby</button></div></form>
+<p id="msg" role="status" aria-live="polite"></p>
+<div class="box"><b>Entrants</b><ul id="players"><li>No entries yet</li></ul></div>
+<button id="draw" class="secondary" type="button" style="display:none;margin-top:14px">Test draw now</button>
+</div>
+</section></div>
+<section class="panel" style="margin-top:20px"><h2>03 / What X would display</h2><p class="caption">Illustrative reply only. No message has been posted.</p>
+<div class="box"><b style="color:var(--p)">@jordan__chev</b><p id="replyText" style="margin-bottom:0;color:var(--txt)">Mention @jordan__chev to request a game. When connected, the bot can reply once with a secure game-setup link.</p></div>
+</section>
+</main>
+<footer>Gaming Network • Isolated X integration preview • Existing Discord bot and API stay unchanged</footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const HANDLE='jordan__chev';
+let lobby=null;
+let serial=0;
+function setText(id,t){$(id).textContent=t}
+function entrants(){if(!lobby)return;const ul=$('players');ul.replaceChildren();if(lobby.players.length===0){const li=document.createElement('li');li.textContent='No entries yet';ul.append(li);return}for(const p of lobby.players){const li=document.createElement('li');li.textContent=p.name+(p.selected?' ✓ confirmed':p.selected===false?' • not selected':' • entered');ul.append(li)}}
+function remaining(){return lobby?Math.max(0,Math.ceil((lobby.closeAt-Date.now())/1000)):0}
+function drawNow(){if(!lobby||lobby.done||lobby.rule!=='random')return;const pool=[...lobby.players];for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}const win=new Set(pool.slice(0,lobby.seats).map(p=>p.name.toLowerCase()));for(const p of lobby.players)p.selected=win.has(p.name.toLowerCase());lobby.done=true;lobby.closeAt=Date.now();setText('msg','Demo lottery complete. Winners were selected locally.');render()}
+function render(){if(!lobby)return;
+ $('empty').style.display='none';$('lobby').classList.add('active');
+ setText('lobbyGame',lobby.game+' · '+lobby.platform);setText('lobbyTitle',lobby.title);setText('lobbySummary',lobby.rule==='first'?'First eligible entrants are confirmed in arrival order.':'All unique entrants are pooled until the timer ends.');
+ setText('lobbyCode',lobby.id);setText('entryTag',lobby.rule==='first'?'FIRST COME':'FIVE-MINUTE DRAW');
+ const chosen=lobby.players.filter(p=>p.selected===true).length;setText('confirmed',chosen+' / '+lobby.seats);
+ const secs=remaining();setText('timer',lobby.rule==='first'?(lobby.done?'Full':'Open'):lobby.done?'Closed':String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0'));
+ $('join').style.display=lobby.done?'none':'block';$('draw').style.display=lobby.rule==='random'&&!lobby.done?'block':'none';
+ entrants()
+}
+$('create').addEventListener('submit',e=>{e.preventDefault();
+ serial+=1;
+ lobby={id:'DEMO-'+String(serial).padStart(3,'0'),game:$('game').value,platform:$('platform').value,title:$('title').value.trim(),seats:Number($('seats').value),rule:$('rule').value,players:[],closeAt:Date.now()+5*60*1000,done:false};
+ $('privateCode').value='';
+ setText('msg','New demo lobby ready. No real game was created.');
+ setText('replyText','Preview: Thanks for tagging @'+HANDLE+'! Set up your game using a verified invitation link from Gaming Network. (Not posted to X.)');
+ render();
+});
+$('join').addEventListener('submit',e=>{e.preventDefault();if(!lobby||lobby.done)return;const name=$('player').value.trim();if(!name)return;
+ if(lobby.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){setText('msg','That name has already entered this demo.');return}
+ const selected=lobby.rule==='first';
+ lobby.players.push({name,selected:lobby.rule==='random'?null:selected});
+ $('player').value='';
+ if(lobby.rule==='first'&&lobby.players.length>=lobby.seats)lobby.done=true;
+ setText('msg',lobby.rule==='first'?'Demo seat reserved.':'Demo entry added to five-minute pool.');
+ render()
+});
+$('draw').addEventListener('click',drawNow);
+setInterval(()=>{if(!lobby)return;if(lobby.rule==='random'&&!lobby.done&&remaining()===0)drawNow();else render()},1000);
+</script>
+</body>
+</html>
