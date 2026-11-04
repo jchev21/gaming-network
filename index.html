@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaming Network</title>
+<style>
+:root{--bg:#101112;--panel:#191b1d;--line:#303337;--gold:#c8a45d;--white:#f4f4f4;--muted:#9ca1a6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--white);font:15px Arial,sans-serif}
+header{padding:24px 5%;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.logo{font-size:23px;font-weight:bold;letter-spacing:2px}
+.logo span{color:var(--gold)}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+button{cursor:pointer;background:#222528;color:white;border:1px solid var(--line);padding:11px 16px;border-radius:6px}
+button:hover,button.active{border-color:var(--gold);color:var(--gold)}
+main{max-width:1100px;margin:auto;padding:30px 20px}
+h1{font-size:32px;margin:0 0 10px}
+h2{font-size:22px}
+p{color:var(--muted);line-height:1.6}
+.gold{color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:24px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:22px}
+.card h3{margin-top:0}
+.section{display:none}.section.show{display:block}
+.status{color:#8fc79b;font-size:13px}
+#board{display:grid;grid-template-columns:repeat(3,90px);gap:8px;margin:20px 0}
+.cell{height:90px;font-size:32px;background:#202326}
+#dice{font-size:65px;margin:20px}
+footer{border-top:1px solid var(--line);padding:25px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">GAMING <span>NETWORK</span></div>
+<nav>
+<button class="active" onclick="show('home',this)">Home</button>
+<button onclick="show('poker',this)">Poker Lobby</button>
+<button onclick="show('games',this)">Games</button>
+<button onclick="show('events',this)">Events</button>
+</nav>
+</header>
+
+<main>
+<section id="home" class="section show">
+<h1>Welcome to <span class="gold">Gaming Network</span></h1>
+<p>Your place to play, compete, and connect.</p>
+<div class="grid">
+<div class="card"><h3>Poker Lobby</h3><p>Browse poker tables and prepare for private games.</p><button onclick="show('poker')">Open Lobby</button></div>
+<div class="card"><h3>Casual Games</h3><p>Play simple games right in your browser.</p><button onclick="show('games')">Play Games</button></div>
+<div class="card"><h3>Events</h3><p>Tournaments and community events.</p><button onclick="show('events')">View Events</button></div>
+</div>
+</section>
+
+<section id="poker" class="section">
+<h1>Poker <span class="gold">Lobby</span></h1>
+<p>Table directory and private game hub.</p>
+<div class="grid">
+<div class="card"><h3>Private Hold'em</h3><p>Private table integration placeholder.</p><p class="status">Provider connection needed</p><button onclick="alert('Poker provider/table link will be configured here.')">Join Table</button></div>
+<div class="card"><h3>Create Table</h3><p>Choose a poker provider to host real multiplayer games.</p><button onclick="alert('Table creation will be connected to your poker provider.')">Create Table</button></div>
+<div class="card"><h3>Coming Soon</h3><p>Player rankings, table filters, club rooms, and tournaments.</p></div>
+</div>
+</section>
+
+<section id="games" class="section">
+<h1>Casual <span class="gold">Games</span></h1>
+<div class="grid">
+<div class="card">
+<h3>Tic-Tac-Toe</h3><p id="turn">X's turn</p>
+<div id="board"></div>
+<button onclick="resetTTT()">Restart</button>
+</div>
+<div class="card">
+<h3>Dice Roller</h3><p>Roll a six-sided die.</p>
+<div id="dice">⚄</div>
+<button onclick="rollDice()">Roll Dice</button>
+</div>
+<div class="card"><h3>More Games</h3><p>Connect Four, Checkers, Chess, and more can be added next.</p></div>
+</div>
+</section>
+
+<section id="events" class="section">
+<h1>Events & <span class="gold">Tournaments</span></h1>
+<div class="card"><h3>No events scheduled</h3><p>Community tournaments and event listings will appear here.</p></div>
+</section>
+</main>
+<footer>Gaming Network · Simple. Competitive. Connected.</footer>
+
+<script>
+function show(id,btn){
+ document.querySelectorAll('.section').forEach(s=>s.classList.remove('show'));
+ document.getElementById(id).classList.add('show');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+ if(btn)btn.classList.add('active');
+}
+let cells=Array(9).fill(''),player='X',over=false;
+function draw(){
+ const board=document.getElementById('board');board.innerHTML='';
+ cells.forEach((v,i)=>{let b=document.createElement('button');b.className='cell';b.textContent=v;b.onclick=()=>move(i);board.appendChild(b)});
+ document.getElementById('turn').textContent=over?'Game over':player+"'s turn";
+}
+function move(i){
+ if(cells[i]||over)return;cells[i]=player;
+ let wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ if(wins.some(w=>w.every(n=>cells[n]===player))){over=true;document.getElementById('turn').textContent=player+' wins!';}
+ else if(cells.every(Boolean)){over=true;document.getElementById('turn').textContent='Draw!';}
+ else player=player==='X'?'O':'X';draw();
+}
+function resetTTT(){cells=Array(9).fill('');player='X';over=false;draw()}
+function rollDice(){document.getElementById('dice').textContent=['⚀','⚁','⚂','⚃','⚄','⚅'][Math.floor(Math.random()*6)]}
+draw();
+</script>
+</body>
+</html>
