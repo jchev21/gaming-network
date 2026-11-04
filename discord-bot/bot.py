@@ -120,7 +120,11 @@ async def on_ready():
             await tree.sync(guild=guild)
             print("Guild commands synced.")
         else:
-            await tree.sync()
+            # Guild sync avoids overwriting Discord Activity Entry Point commands globally.
+            for connected_guild in bot.guilds:
+                tree.copy_global_to(guild=connected_guild)
+                synced = await tree.sync(guild=connected_guild)
+                print(f"Guild commands synced: {connected_guild.name} ({len(synced)} commands)")
     except Exception as e:
         print("Command sync:", e)
 
