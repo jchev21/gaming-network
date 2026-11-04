@@ -7,11 +7,23 @@ async function connectActivity() {
 
   try {
     await discordSdk.ready();
-    if (status) status.textContent = "Connected to Discord";
-    console.log("Gaming Network Activity connected");
+
+    if (status) {
+      status.textContent = "Connected to Discord!";
+    }
+
+    const auth = await discordSdk.commands.authorize({
+      client_id: "1566288861259108424",
+      response_type: "code",
+      state: "",
+      prompt: "none",
+      scope: ["identify"]
+    });
+
+    console.log("Discord authorization started", auth);
   } catch (error) {
-    if (status) status.textContent = "Open inside Discord to connect";
-    console.log("Discord Activity connection:", error);
+    if (status) status.textContent = "Discord connection failed";
+    console.error(error);
   }
 }
 

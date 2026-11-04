@@ -1,4 +1,289 @@
 <!DOCTYPE html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, 
+initial-scale=1">
+<title>Gaming Network</title>
+
+<style>
+:root {
+  --bg: #101112;
+  --panel: #191b1d;
+  --line: #303337;
+  --gold: #c8a45d;
+  --white: #f4f4f4;
+  --muted: #999;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--white);
+  font: 15px Arial, sans-serif;
+}
+
+header {
+  padding: 24px 5%;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.logo {
+  font-size: 23px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.logo span { color: var(--gold); }
+
+nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  cursor: pointer;
+  background: #222528;
+  color: white;
+  border: 1px solid var(--line);
+  padding: 11px 16px;
+  border-radius: 7px;
+}
+
+button:hover, button.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 30px 20px;
+}
+
+h1 { font-size: 32px; margin: 0 0 10px; }
+h2 { font-size: 22px; }
+p { color: var(--muted); line-height: 1.6; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+}
+
+.gold { color: var(--gold); }
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.game {
+  font-size: 32px;
+  padding: 18px;
+  text-align: center;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  padding: 30px;
+  border-top: 1px solid var(--line);
+}
+
+.hidden { display: none; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">GAMING <span>NETWORK</span></div>
+
+  <nav>
+    <button class="active" 
+onclick="showPage('home',this)">Home</button>
+    <button onclick="showPage('poker',this)">Poker Lobby</button>
+    <button onclick="showPage('games',this)">Games</button>
+    <button onclick="showPage('events',this)">Events</button>
+  </nav>
+</header>
+
+<main>
+
+<div class="profile panel">
+  <img id="discord-avatar" alt="Discord Avatar">
+  <div>
+    <strong id="discord-username">Gaming Network Member</strong>
+    <p id="discord-status">Open inside Discord to connect</p>
+  </div>
+</div>
+
+<section id="home">
+  <h1>Welcome to <span class="gold">Gaming Network</span></h1>
+  <p>Your community. Your games. Your network.</p>
+
+  <div class="panel">
+    <h2>Gaming Network Hub</h2>
+    <p>Connect with friends, explore games, and join upcoming 
+events.</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>♠ Poker Lobby</h2>
+      <p>Multiplayer poker coming soon.</p>
+      <button onclick="showPage('poker')">Enter Lobby</button>
+    </div>
+
+    <div class="card">
+      <h2>🎮 Casual Games</h2>
+      <p>Play quick games with your friends.</p>
+      <button onclick="showPage('games')">Play Games</button>
+    </div>
+
+    <div class="card">
+      <h2>🏆 Events</h2>
+      <p>Community tournaments and events.</p>
+      <button onclick="showPage('events')">View Events</button>
+    </div>
+  </div>
+</section>
+
+<section id="poker" class="hidden">
+  <h1>Poker <span class="gold">Lobby</span></h1>
+  <div class="panel">
+    <h2>Coming Soon</h2>
+    <p>Multiplayer poker tables and tournaments will appear 
+here.</p>
+  </div>
+</section>
+
+<section id="games" class="hidden">
+  <h1>Casual <span class="gold">Games</span></h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Tic-Tac-Toe</h2>
+      <div id="board" class="game">⬜ ⬜ ⬜<br>⬜ ⬜ ⬜<br>⬜ ⬜ 
+⬜</div>
+      <button onclick="resetGame()">Reset</button>
+      <p id="game-status">Local game</p>
+    </div>
+
+    <div class="card">
+      <h2>Dice Roller</h2>
+      <div id="dice" class="game">🎲</div>
+      <button onclick="rollDice()">Roll Dice</button>
+    </div>
+  </div>
+</section>
+
+<section id="events" class="hidden">
+  <h1>Community <span class="gold">Events</span></h1>
+  <div class="panel">
+    <h2>Upcoming Events</h2>
+    <p>Events and tournaments will be announced here.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  GAMING NETWORK · COMMUNITY · GAMES · EVENTS
+</footer>
+
+<script>
+function showPage(page,button) {
+  document.querySelectorAll("main section").forEach(section=>{
+    section.classList.add("hidden");
+  });
+
+  document.getElementById(page).classList.remove("hidden");
+
+  document.querySelectorAll("nav button").forEach(btn=>{
+    btn.classList.remove("active");
+  });
+
+  if(button) button.classList.add("active");
+}
+
+let cells = Array(9).fill("");
+let turn = "X";
+
+function drawBoard() {
+  document.getElementById("board").innerHTML =
+    cells.map((cell,i)=>
+      `<button onclick="playCell(${i})">${cell || "⬜"}</button>`
+    ).join("");
+}
+
+function playCell(i) {
+  if(cells[i]) return;
+
+  cells[i] = turn;
+  turn = turn === "X" ? "O" : "X";
+
+  drawBoard();
+  document.getElementById("game-status").textContent =
+    turn + "'s turn";
+}
+
+function resetGame() {
+  cells = Array(9).fill("");
+  turn = "X";
+  drawBoard();
+  document.getElementById("game-status").textContent = "X's 
+turn";
+}
+
+drawBoard();
+
+function rollDice() {
+  document.getElementById("dice").textContent =
+    "🎲 " + (Math.floor(Math.random()*6)+1);
+}
+</script>
+
+<script type="module" src="./activity-sdk.js"></script>
+
+</body>
+</html>
+<!DOCTYPE 
+html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
