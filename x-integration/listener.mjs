@@ -66,7 +66,20 @@ async function persist(file, state) {
   await fs.rename(temp, file);
 }
 async function pollX(s, state, file) {
-  if (!s.userId || !s.bearer) throw new Error('X_USER_ID and X_API_BEARER_TOKEN required');
+  if (!s.bearer) throw new Error('X_API_BEARER_TOKEN required');
+  if (!s.userId) {
+    const lookup = await fetch('https://api.x.com/2/users/by/username/' +
+      encodeURIComponent(s.handle.replace(/^@/, '')), {
+      headers: { Authorization: 'Bearer ' + s.bearer },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!lookup.ok) throw new Error('X username lookup HTTP ' + lookup.status);
+    const profile = await lookup.json();
+    if (!/^\d+$/.test(String(profile.data?.id || '')) ||
+        String(profile.data?.username || '').toLowerCase() !== s.handle.replace(/^@/, '').toLowerCase())
+      throw new Error('X account lookup returned unexpected profile');
+    s.userId = String(profile.data.id);
+  }
   if (!/^\d+$/.test(s.userId)) throw new Error('X_USER_ID must be numeric');
   let nextToken;
   let posts = [];
@@ -135,7 +148,7 @@ export async function start(env = process.env) {
       res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
-        credentials_configured: !!(s.userId && s.bearer), last_checked: state.last_checked });
+        credentials_configured: !!s.bearer, last_checked: state.last_checked });
       return;
     }
     if (!url.pathname.startsWith('/admin/')) { send(404, { error: 'Not found' }); return; }
