@@ -9,7 +9,7 @@ const origin='https://example.test';
 const auth={authenticated:req=>req.headers['x-test-user']?{id:req.headers['x-test-user'],username:req.headers['x-test-user']}:null};
 const mentions={pending:[{post_id:'11111111',author_id:'10001',excerpt:'@jordan__chev start a game'}]};
 let time=100000;
-const api=await createLobbyApi({dataDir:dir,auth,mentions,adminToken:'test-server-private-encryption-key',publicOrigin:origin,now:()=>time});
+const api=await createLobbyApi({dataDir:dir,auth,mentions,adminToken:'test-server-private-encryption-key',joinSecretKey:'unit-test-join-secret-32bytes-or-more',publicOrigin:origin,now:()=>time});
 const server=http.createServer(async(req,res)=>{if(!(await api.handle(req,res,new URL(req.url,'http://localhost')))){res.writeHead(404);res.end()}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base='http://127.0.0.1:'+server.address().port;

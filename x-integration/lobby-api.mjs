@@ -11,7 +11,7 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||adminToken}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||''}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
@@ -147,7 +147,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
       if(role!=='host')throw err('HOST_ONLY','Only the host may change instructions',403);
       db.joinSecrets[g.id]=sealJoinInstructions(body.instructions,joinSecretKey);touch();
      }
-     return {role,ready:g.status==='ready',instructions:openJoinInstructions(db.joinSecrets[g.id],joinSecretKey)};
+     return {role,ready:g.status==='ready',instructions:openJoinInstructions(db.joinSecrets[g.id],joinSecretKey,legacyJoinSecretKey)};
     },'on-touch');
     send(res,200,result);
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
