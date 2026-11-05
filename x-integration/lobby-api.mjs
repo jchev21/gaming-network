@@ -13,14 +13,32 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||''}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
- const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
+ const file=path.join(dataDir,'x-lobbies.json');
+ let db=await load(file);
  let queue=Promise.resolve();
  const limiter=createRateLimiter({now});
  const guard=(key,limit=20)=>limiter.check(key,{limit,windowMs:60_000});
- async function serial(fn,write=true){const task=queue.then(async()=>{let touched=false;const result=await fn(()=>{touched=true});if(write===true||(write==='on-touch'&&touched))await save(file,db);return result});queue=task.catch(()=>{});return task}
+ async function serial(fn,write=true){
+  const task=queue.then(async()=>{
+   let touched=false;
+   try{
+    const result=await fn(()=>{touched=true});
+    if(write===true||(write==='on-touch'&&touched))await saveState(file,db);
+    return result;
+   }catch(error){
+    // Some operations mutate the in-memory lobby before failing validation
+    // or before the durable write commits. Return to the last disk snapshot,
+    // preventing a later successful request from persisting a failed join.
+    try{db=await load(file)}catch(_){/* preserve original request error */}
+    throw error;
+   }
+  });
+  queue=task.catch(()=>{});
+  return task;
+ }
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
  function who(req){const user=auth.authenticated(req);if(!user)throw err('AUTH_REQUIRED','Sign in with X first',401);return user}
