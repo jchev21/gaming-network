@@ -1,0 +1,49 @@
+name: Discord Dashboard Regression Checks
+
+on:
+  push:
+    branches:
+      - fix/discord-dashboard-response
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check all Python sources compile
+        run: python -m compileall -q discord-bot
+      - name: Check dashboard async handlers
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          tree = ast.parse(Path('discord-bot/bot.py').read_text())
+          handlers = {}
+          for node in ast.walk(tree):
+              if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+                  handlers[node.name] = node
+          for name in ('b_me', '_show', 'post_dashboard', 'refresh_all_dashboards'):
+              method = handlers.get(name)
+              assert method, f'Missing expected handler: {name}'
+              calls = [n for n in ast.walk(method) if isinstance(n, ast.Call)]
+              assert any(
+                  isinstance(c.func, ast.Attribute)
+                  and isinstance(c.func.value, ast.Name)
+                  and c.func.value.id == 'asyncio'
+                  and c.func.attr == 'to_thread'
+                  for c in calls
+              ), f'Missing nonblocking render in {name}'
+          modal = handlers.get('b_add')
+          assert modal, 'Missing Add Event handler'
+          modal_calls = [n for n in ast.walk(modal) if isinstance(n, ast.Call)]
+          assert any(isinstance(c.func, ast.Attribute) and c.func.attr == 'send_modal' for c in modal_calls), 'Add event must respond with a modal'
+          print('Discord dashboard regression checks passed')
+          PY
