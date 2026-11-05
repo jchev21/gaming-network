@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/discord-dashboard-response
+      - launch/discord-dashboard-rate-limit-guard
   workflow_dispatch:
 
 permissions:
@@ -18,8 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Unit test dashboard signatures
+        run: python -m unittest discover -s discord-bot -p 'test_dashboard_refresh.py' -v
       - name: Check all Python sources compile
         run: python -m compileall -q discord-bot
+      - name: Build production Discord bot container
+        run: docker build -t gn-discord-hub-bot:ci discord-bot
       - name: Check dashboard async handlers
         run: |
           python - <<'PY'

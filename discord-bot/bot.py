@@ -9,6 +9,7 @@ Requires discord.py 2.4+ and aiohttp.  Set DISCORD_TOKEN in Terminal first.
 import os, json, asyncio, datetime, random
 from pathlib import Path
 import discord
+from dashboard_refresh import dashboard_fingerprint
 from discord import app_commands
 from discord.ext import commands
 from aiohttp import web
@@ -1085,6 +1086,7 @@ class DashboardView(discord.ui.View):
         rec = data["dashboards"].get(str(interaction.message.id))
         if rec:
             rec["panel"] = panel
+            rec["fingerprint"] = dashboard_fingerprint(panel, data)
             save_data()
 
     @discord.ui.button(label="Calendar", emoji="📅", style=discord.ButtonStyle.primary, custom_id="dash:calendar", row=0)
@@ -1115,7 +1117,8 @@ class DashboardView(discord.ui.View):
 async def post_dashboard(channel, panel="calendar"):
     image = await asyncio.to_thread(panel_file, panel)
     msg = await channel.send(file=image, view=DashboardView())
-    data["dashboards"][str(msg.id)] = {"channel_id": channel.id, "panel": panel}
+    data["dashboards"][str(msg.id)] = {"channel_id": channel.id, "panel": panel,
+                                       "fingerprint": dashboard_fingerprint(panel, data)}
     save_data()
     return msg
 
@@ -1132,10 +1135,18 @@ async def dashboard_cmd(interaction: discord.Interaction):
 async def refresh_all_dashboards():
     for mid, rec in list(data["dashboards"].items()):
         try:
+            panel = rec.get("panel", "calendar")
+            fingerprint = dashboard_fingerprint(panel, data)
+            # An unchanged image need not be re-uploaded or edited every minute.
+            if rec.get("fingerprint") == fingerprint:
+                continue
             ch = bot.get_channel(rec["channel_id"]) or await bot.fetch_channel(rec["channel_id"])
             msg = await ch.fetch_message(int(mid))
-            image = await asyncio.to_thread(panel_file, rec.get("panel", "calendar"))
+            image = await asyncio.to_thread(panel_file, panel)
             await msg.edit(attachments=[image], view=DashboardView())
+            # Persist the signature only after Discord confirms the edit.
+            rec["fingerprint"] = fingerprint
+            save_data()
         except discord.NotFound:
             data["dashboards"].pop(mid, None)
             save_data()
