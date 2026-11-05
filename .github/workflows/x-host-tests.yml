@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/x-host-workflow
+      - launch/public-lobby-feed-integration
   pull_request:
     paths:
       - 'x-integration/**'
