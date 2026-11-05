@@ -34,6 +34,15 @@ export function classifyMention(post, handle, ownUserId) {
     excerpt: body.slice(0, 240),
   };
 }
+export function requiredPublicOrigin(env = process.env) {
+  const value=env.X_PUBLIC_ORIGIN;
+  if(typeof value!=='string' || !/^https:\/\/[^/?#\s:@]+(?::\d{1,5})?$/.test(value))
+    throw new Error('X_PUBLIC_ORIGIN must explicitly be set to a single secure HTTPS origin');
+  const parsed=new URL(value);
+  if(parsed.origin!==value||!parsed.hostname)
+    throw new Error('X_PUBLIC_ORIGIN must have no path, query, fragment or trailing slash');
+  return value;
+}
 export function adminOk(given, token) {
   if (!token || typeof given !== 'string') return false;
   const provided=crypto.createHash('sha256').update(given).digest();
@@ -149,7 +158,7 @@ export async function start(env = process.env) {
   const stateFile = path.join(s.dataDir, 'x-mentions-state.json');
   const state = await readState(stateFile);
   const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
-  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:env.X_PUBLIC_ORIGIN||'https://x-game-intake-production.up.railway.app'});
+  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:requiredPublicOrigin(env)});
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
