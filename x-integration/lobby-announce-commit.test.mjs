@@ -25,7 +25,7 @@ async function scenario({ failSave }) {
   });
   const saveState = async (file, state) => {
     saveCalls++;
-    if (failSave) throw new Error('injected disk failure');
+    if (failSave && saveCalls === 1) throw new Error('injected disk failure');
     await fs.writeFile(file, JSON.stringify(state));
   };
   const auth = { authenticated: req => req.headers['x-test-user'] ? { id: req.headers['x-test-user'], username: 'second' } : null };
@@ -50,6 +50,18 @@ async function scenario({ failSave }) {
     assert.equal(response.status, failSave ? 500 : 200);
     assert.equal(saveCalls, 1);
     assert.equal(calls.length, failSave ? 0 : 1, 'No announcement before successful save');
+    if (failSave) {
+      // A failed join must not remain in RAM and be persisted by a later
+      // successful read/write. This also prevents a lost announcement race.
+      const replay = await fetch(`http://127.0.0.1:${server.address().port}/api/lobbies/${lobby.id}`);
+      assert.equal(replay.status, 200);
+      const body = await replay.json();
+      assert.equal(body.game.status, 'open');
+      assert.equal(body.game.entryCount, 1);
+      const storedAfterRead = JSON.parse(await fs.readFile(dbFile, 'utf8'));
+      assert.equal(storedAfterRead.lobbies[lobby.id].entries.length, 1);
+      assert.equal(calls.length, 0);
+    }
     if (!failSave) {
       assert.deepEqual(calls[0], { type: 'ready', status: 'ready' });
       const stored = JSON.parse(await fs.readFile(dbFile, 'utf8'));
