@@ -2,6 +2,8 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createXAuth } from './x-auth.mjs';
+import { createLobbyApi } from './lobby-api.mjs';
 
 /**
  * Isolated Gaming Network X mention intake.
@@ -132,6 +134,8 @@ export async function start(env = process.env) {
   const s = settings(env);
   const stateFile = path.join(s.dataDir, 'x-mentions-state.json');
   const state = await readState(stateFile);
+  const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
+  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:env.X_PUBLIC_ORIGIN||'https://x-game-intake-production.up.railway.app'});
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
@@ -149,11 +153,21 @@ export async function start(env = process.env) {
       res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
-        credentials_configured: !!s.bearer, last_checked: state.last_checked });
+        credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked });
+      return;
+    }
+    // OAuth and lobbies are independent of the X mention polling schedule.
+    try {
+      if (await auth.handle(req, res, url)) return;
+      if (await lobbyApi.handle(req, res, url)) return;
+    } catch (err) {
+      console.error('X auth/lobby handler failed:', err.code||err.message);
+      if (!res.headersSent) send(503, {error:'Service temporarily unavailable'});
+      else res.end();
       return;
     }
     // Static, local-browser previews only. The X API is not called here.
-    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html' };
+    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html' };
     if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(staticPages, url.pathname)) {
       try {
         const html = await fs.readFile(new URL('./' + staticPages[url.pathname], import.meta.url));
@@ -163,7 +177,7 @@ export async function start(env = process.env) {
           'x-robots-tag': 'noindex, nofollow',
           'referrer-policy': 'no-referrer',
           'x-content-type-options': 'nosniff',
-          'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          'content-security-policy': "default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         });
         res.end(html);
       } catch (err) {
