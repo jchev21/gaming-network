@@ -23,6 +23,8 @@ jobs:
         run: python -m unittest discover -s discord-bot -p 'test_dashboard_refresh.py' -v
       - name: Check all Python sources compile
         run: python -m compileall -q discord-bot
+      - name: Build production Discord bot container
+        run: docker build -t gn-discord-hub-bot:ci discord-bot
       - name: Check dashboard async handlers
         run: |
           python - <<'PY'
