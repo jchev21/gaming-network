@@ -115,6 +115,13 @@ try {
   assert.equal(empty.body.source, 'live');
   assert.ok(String(empty.headers.get('cache-control') || '').includes('max-age'));
 
+  // Simulate a busy Railway reverse proxy: viewers share a socket address.
+  // The endpoint must not trigger a collective 429 after only 60 polls/min.
+  for (let i = 0; i < 90; i++) {
+    const response = await req('/api/lobbies');
+    assert.equal(response.code, 200, 'Public dashboard viewers must not share a tiny proxy rate cap');
+  }
+
   const approval = await req(
     '/admin/invites',
     'POST',
