@@ -30,8 +30,13 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   // Public read-only lobby discovery. Never disclose private IDs or join secrets.
   if(method==='GET'&&pathname==='/api/lobbies'){
    try{
-    // Avoid trusting spoofable X-Forwarded-For values from unauthenticated users.
-    guard('public-feed:'+String(req.socket?.remoteAddress||'unknown').slice(0,64),60);
+    // On Railway many browsers share the same reverse-proxy socket address.
+    // A 60/minute per-socket cap would collectively 429 only ~30 people
+    // polling this public dashboard every 30 seconds. Do not trust a
+    // client-controlled X-Forwarded-For header as a unique identity.
+    // Use a generous aggregate safety ceiling until trusted edge-level
+    // per-client rate limiting is configured.
+    guard('public-feed:aggregate',6000);
     const query=parseFeedQuery(url.searchParams);
     const result=await serial(touch=>{
      for(const game of Object.values(db.lobbies)){
