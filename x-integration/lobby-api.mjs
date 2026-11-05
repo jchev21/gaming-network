@@ -5,6 +5,7 @@ import path from 'node:path';
 import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry,joinWaitlist,replaceNoShow} from './game-core.mjs';
 import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
 import {createRateLimiter} from './rate-limit.mjs';
+import {createDiscordAnnounceBridge} from './discord-announce.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
 const err=(code,message,status=400)=>new LobbyError(code,message,status);
@@ -18,6 +19,15 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  let queue=Promise.resolve();
  const limiter=createRateLimiter({now});
  const guard=(key,limit=20)=>limiter.check(key,{limit,windowMs:60_000});
+ // Opt-in Discord lobby announcements (disabled unless env explicitly enables).
+ const announceBridge=createDiscordAnnounceBridge({dataDir,publicOrigin,now});
+ const maybeAnnounce=(lobby,event='ready')=>{
+  try{
+   if(!announceBridge.config.enabled||!lobby)return;
+   if(event==='ready'&&lobby.status==='ready')announceBridge.notifyLobbyReady(lobby,{hostDisplayName:null}).catch(()=>{});
+   if(event==='cancelled'&&lobby.status==='cancelled')announceBridge.notifyLobbyCancelled(lobby).catch(()=>{});
+  }catch(_){/* never break lobby API on announce failure */}
+ };
  async function serial(fn,write=true){const task=queue.then(async()=>{let touched=false;const result=await fn(()=>{touched=true});if(write===true||(write==='on-touch'&&touched))await save(file,db);return result});queue=task.catch(()=>{});return task}
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
@@ -106,6 +116,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      if(manage[2]==='cancel') {
       cancelLobby(game,actor.id,now());
       delete db.joinSecrets[game.id]; // revoke private instructions for former selected players
+      maybeAnnounce(game,'cancelled');
       return {game:publicLobby(game,now())};
      }
      if(manage[2]==='withdraw') {
@@ -161,7 +172,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(match&&match[2]&&method==='POST'){
    try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
-    joinLobby(g,user.id,'@'+user.username,now());return publicLobby(g,now());
+    joinLobby(g,user.id,'@'+user.username,now());const view=publicLobby(g,now());maybeAnnounce(g,'ready');return view;
    });send(res,200,{game:result})
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
