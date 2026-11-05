@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/discord-dashboard-response
+      - continuation/discord-visual-studio
   workflow_dispatch:
 
 permissions:
@@ -20,6 +21,11 @@ jobs:
           python-version: "3.12"
       - name: Check all Python sources compile
         run: python -m compileall -q discord-bot
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate mock Discord Studio theme and pane model
+        run: node discord-bot/dashboard-studio-model.test.mjs
       - name: Check dashboard async handlers
         run: |
           python - <<'PY'
