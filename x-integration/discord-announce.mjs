@@ -111,7 +111,7 @@ export function formatDiscordContent(payload) {
   const lines = [
     payload.event === 'cancelled'
       ? `**Lobby cancelled:** ${publicText(payload.title, 48)}`
-      : `**Lobby ready:** ${publicText(payload.title, 48)}`
+      : `**Lobby ready:** ${publicText(payload.title, 48)}`,
     `${payload.game} \u00b7 ${payload.platform} \u00b7 ${payload.mode}`,
     `${hostLine} \u00b7 ${seats}${wait}`,
     payload.lobbyUrl,
