@@ -129,5 +129,15 @@ try{
  const privateList=await req('/api/my-games','GET',undefined,{'x-test-user':'10002'});
  assert.equal(privateList.body.games.find(e=>e.id===gid3)?.viewerRole,'removed');
  assert.ok(!JSON.stringify(privateList.body).includes('HOST-TEST-ALPHA'));
+ // Verify repeated private join-detail mutations are throttled before storage writes.
+ for(let i=0;i<10;i++){
+  const denied=await req(p3+'/join-details','POST',{instructions:'Untrusted request from an outsider'}, {'x-test-user':'19999'});
+  assert.equal(denied.code,403);
+ }
+ const throttled=await req(p3+'/join-details','POST',{instructions:'Untrusted request from an outsider'}, {'x-test-user':'19999'});
+ assert.equal(throttled.code,429);
+ assert.equal(throttled.body.error,'RATE_LIMIT');
+ // A separate authenticated host is unaffected by another account's limit.
+ assert.equal((await req(p3+'/join-details','GET',undefined,{'x-test-user':'10001'})).code,200);
  console.log('Lobby API tests passed');
 }finally{server.close();await fs.rm(dir,{recursive:true,force:true})}
