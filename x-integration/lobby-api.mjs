@@ -104,6 +104,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      const g=db.lobbies[privateMatch[1]];
      if(!g)throw err('NOT_FOUND','Game not found',404);
      publicLobby(g,now());
+     if(method==='POST'&&g.status==='cancelled')throw err('CANCELLED','Cannot edit a cancelled game',409);
      const role=joinDetailsRole(g,actor.id);
      if(!role)throw err('NOT_SELECTED','Joining details are only available to the host or selected players',403);
      if(method==='POST'){

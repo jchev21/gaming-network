@@ -94,3 +94,7 @@ The X game picker now offers Fortnite, Call of Duty: Warzone, Apex Legends, Rock
 
 ### Multiplayer hosting batch — private instructions
 On the isolated `feature/x-host-workflow` branch, the X game picker lets a host choose mode, region, crossplay and a public Fortnite island identifier. The real server validates all public settings before accepting an X-authenticated invitation. Private game joining instructions are sent only through `POST /api/lobbies/:id/join-details` by the verified host and delivered via `GET /api/lobbies/:id/join-details` to that host or a selected player after the lobby is ready. Instructions are encrypted at rest with AES-256-GCM and the secret key from `X_JOIN_SECRET_KEY` or the existing high-entropy `X_ADMIN_TOKEN`. Public lobby responses never include private instructions or X user IDs. Actual Fortnite/Warzone game creation remains manual; this is only Gaming Network signup management.
+
+
+### Cancellation and withdrawal UX (not deployed yet)
+The browser lobby now exposes X-authenticated host cancellation and entrant withdrawal controls, and uses server-side viewer state to avoid duplicate submissions. Cancelled lobbies show a warning and hide join details; updates to encrypted joining instructions are rejected after cancellation. Withdrawals are one-way before selection closes; public lobby data does not expose internal X IDs. Changes are isolated to `feature/x-host-workflow` beyond the pinned deployed release.

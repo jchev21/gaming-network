@@ -11,6 +11,8 @@ a{color:#d1b7ff}.panel{border:1px solid #383155;background:#18192b;border-radius
 h1{font-size:clamp(26px,5vw,44px);line-height:1.1;margin:8px 0}h2{font-size:19px;margin:6px 0}
 small,p{color:#b9b5cd}button{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:750;cursor:pointer;background:#bb9bff;color:#15101e}
 button:disabled{opacity:.5;cursor:not-allowed}
+#withdraw,#cancel{background:#312b47;color:#e7d5ff;border:1px solid #6e5b8f;margin:5px}
+#cancel{border-color:#a56677;color:#ffd2dc}
 textarea{width:100%;padding:12px;border:1px solid #5b4f78;border-radius:10px;color:#f5f3ff;background:#111321;font:inherit}
 .stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
 .stat div{background:#25233a;padding:12px;border-radius:12px}.stat b{display:block;font-size:24px}
@@ -21,7 +23,7 @@ ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1p
 </style></head><body>
 <header><div class="brand">GAMING <b>NETWORK</b></div><a href="/high-scores">High Scores Arcade</a></header>
 <main><div><span class="status">X-VERIFIED PLAYER LOBBY</span><h1 id="title">Loading game…</h1><p id="summary">Retrieving game status from the server.</p></div>
-<div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button></div>
+<div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button> <button id="withdraw" hidden disabled>Withdraw entry</button> <button id="cancel" hidden disabled>Cancel game</button></div>
 <div class="panel"><h2>Players</h2><ul id="players"><li>Waiting for players…</li></ul>
 <p>Only verified X accounts may join once. First-come or random selection is performed by the server. This is not a prize or code redemption system.</p></div></main>
 <section id="joinDetailsPanel" class="panel" hidden>
@@ -38,10 +40,15 @@ ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1p
 <script>
 const $=id=>document.getElementById(id);
 const id=new URLSearchParams(location.search).get('id')||'';
-let user=null,game=null;
+let user=null,game=null,viewer=null,oauthReady=false;
 function text(k,v){$(k).textContent=String(v)}
 const fmt=s=>s.replace(/(^.|-.)/g,v=>v.toUpperCase()).replaceAll('-',' ');
 async function json(url,opts){const res=await fetch(url,opts);return {ok:res.ok,status:res.status,data:await res.json()}}
+async function refreshViewer(){
+ viewer=null;
+ if(!user||!game)return;
+ try{const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/me');if(r.ok)viewer=r.data}catch{}
+}
 async function refresh(){
  if(!/^[a-f0-9-]{36}$/.test(id)){text('summary','Invalid game link');return}
  try{
@@ -56,8 +63,16 @@ async function refresh(){
   const list=$('players');list.replaceChildren();
   if(!game.entries.length){const li=document.createElement('li');li.textContent='No entries yet';list.append(li)}
   for(const x of game.entries){const li=document.createElement('li');li.textContent=x.name+(x.selected===true?' · selected':x.selected===false?' · not selected':' · entered');list.append(li)}
-  const button=$('join');button.disabled=!user||game.status!=='open';
-  button.textContent=!user?'Sign in with X':game.status==='open'?'Join this game':'Entries closed';
+  await refreshViewer();
+  const button=$('join'),cancelled=game.status==='cancelled';
+  button.disabled=cancelled||game.status!=='open'||(!user&&!oauthReady)||Boolean(viewer?.joined);
+  button.textContent=cancelled?'Game cancelled':!user?(oauthReady?'Sign in with X':'X sign-in unavailable'):viewer?.joined?'You are entered':game.status==='open'?'Join this game':'Entries closed';
+  $('withdraw').hidden=!viewer?.canWithdraw;
+  $('withdraw').disabled=!viewer?.canWithdraw;
+  $('cancel').hidden=!viewer?.canCancel;
+  $('cancel').disabled=!viewer?.canCancel;
+  if(cancelled){text('notice','This game was cancelled by its host.');$('joinDetailsPanel').hidden=true;}
+
  }catch{ text('notice','Unable to reach game server') }
 }
 async function refreshJoinDetails(){
@@ -91,12 +106,8 @@ $('joinEditor').addEventListener('submit',async e=>{
 });
 async function initialize(){
  try{const r=await json('/api/me');user=r.data.user}catch{}
- const b=$('join');b.disabled=false;
- if(!user){
-  const ready=await json('/health').then(r=>r.data.oauth_ready).catch(()=>false);
-  b.disabled=!ready;
-  b.textContent=ready?'Sign in with X':'X sign-in not configured yet';
- }
+ const b=$('join');
+ oauthReady=await json('/health').then(r=>Boolean(r.data.oauth_ready)).catch(()=>false);
  b.addEventListener('click',async()=>{
   if(!user){location.href='/auth/x/start?next='+encodeURIComponent('/lobby?id='+id);return}
   b.disabled=true;
@@ -106,7 +117,26 @@ async function initialize(){
   }catch{ text('notice','Server not available') }
   await refresh();
  });
- await refresh();if(user)await refreshJoinDetails();setInterval(()=>{refresh().then(()=>{if(user)refreshJoinDetails()})},5000);
+
+ $('withdraw').addEventListener('click',async()=>{
+  if(!user||!viewer?.canWithdraw||!confirm('Withdraw your entry? You cannot re-enter this game.'))return;
+  $('withdraw').disabled=true;
+  try{
+   const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/withdraw',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+   text('notice',r.ok?'Entry withdrawn. You cannot join this game again.':r.data.message||'Unable to withdraw');
+  }catch{text('notice','Server unavailable')}
+  await refresh();
+ });
+ $('cancel').addEventListener('click',async()=>{
+  if(!user||!viewer?.canCancel||!confirm('Cancel this game? Players will lose access to joining instructions.'))return;
+  $('cancel').disabled=true;
+  try{
+   const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/cancel',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+   text('notice',r.ok?'Game cancelled for all players.':r.data.message||'Unable to cancel');
+  }catch{text('notice','Server unavailable')}
+  await refresh();
+ });
+ await refresh();if(user&&game?.status!=='cancelled')await refreshJoinDetails();setInterval(()=>{refresh().then(()=>{if(user&&game?.status!=='cancelled')refreshJoinDetails()})},5000);
 }
 initialize();
 </script></body></html>

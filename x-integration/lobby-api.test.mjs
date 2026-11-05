@@ -55,6 +55,8 @@ try{
  assert.equal(cancel.body.game.confirmedCount,0);
  const hidden=await req(instructionsPath,'GET',undefined,{'x-test-user':'10002'});
  assert.equal(hidden.code,403);
+ const afterCancelEdit=await req(instructionsPath,'POST',{instructions:privateNotes},{'x-test-user':'10001'});
+ assert.equal(afterCancelEdit.code,409);
  const afterCancel=await req('/api/lobbies/'+gameId);
  assert.equal(afterCancel.body.game.status,'cancelled');
  const cancelAgain=await req('/api/lobbies/'+gameId+'/cancel','POST',{}, {'x-test-user':'10001'});
