@@ -27,6 +27,11 @@ assert.ok(!JSON.stringify(publicLobby(lottery)).includes('ownerXId'));
 assert.ok(!JSON.stringify(publicLobby(lottery)).includes('"xId"'));
 assert.deepEqual(finalizeLobby(lottery,t+600000).winners,lottery.winners);
 assert.throws(()=>createLobby({...config,roundSeconds:11},'1',t),e=>e.code==='INVALID_ROUND');
+for (const hosted of ['fortnite','warzone','apex-legends','rocket-league','minecraft','roblox','valorant','custom-multiplayer']) {
+  const round=createLobby({...config,game:hosted,platform:'pc'},'1',t);
+  assert.equal(round.game,hosted);
+  assert.equal(round.status,'open');
+}
 assert.throws(()=>createLobby({...config,game:'fake'},'1',t),e=>e.code==='INVALID_GAME');
 const exp=createLobby(config,'100',t,'expire');
 finalizeLobby(exp,t+300001);assert.equal(exp.status,'closed');

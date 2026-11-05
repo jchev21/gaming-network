@@ -7,7 +7,7 @@
 import { randomUUID, randomInt } from 'node:crypto';
 
 export const ENTRY_MODES = Object.freeze(['first', 'lottery']);
-export const GAME_TYPES = Object.freeze(['arcade-runner', 'arcade-targets', 'poker', 'trivia', 'code-drop', 'giveaway']);
+export const GAME_TYPES = Object.freeze(['arcade-runner', 'arcade-targets', 'poker', 'trivia', 'code-drop', 'giveaway', 'fortnite', 'warzone', 'apex-legends', 'rocket-league', 'minecraft', 'roblox', 'valorant', 'custom-multiplayer']);
 export const PLATFORMS = Object.freeze(['web', 'discord', 'pc', 'playstation', 'xbox', 'mobile']);
 export const ROUND_SECONDS = Object.freeze([30, 60, 120, 300]);
 export class LobbyError extends Error {

@@ -63,7 +63,7 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 <p class="caption">This is a safe local simulation. No posts, Discord commands, or promo codes are sent.</p>
 <form id="create">
 <div class="two">
-<div><label for="game">Game type</label><select id="game" required><option>High Scores</option><option>Neon Targets</option><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
+<div><label for="game">Game type</label><select id="game" required><option>High Scores</option><option>Neon Targets</option><option>Fortnite</option><option>Call of Duty: Warzone</option><option>Apex Legends</option><option>Rocket League</option><option>Minecraft</option><option>Roblox</option><option>Valorant</option><option>Other Multiplayer Game</option><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
 <div><label for="platform">Platform</label><select id="platform" required><option>Discord</option><option>PC</option><option>PlayStation</option><option>Xbox</option><option>Mobile</option><option>Web</option></select></div>
 </div>
 <label for="title">Game title</label><input id="title" placeholder="Friday night game" maxlength="75" required value="Community Game Night">
@@ -76,7 +76,7 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 <label for="privateCode">Optional game / promo code (not stored)</label><input id="privateCode" type="password" autocomplete="off" placeholder="Leave blank for now" maxlength="120">
 <button class="primary" type="submit">Create demo lobby</button>
 </form>
-<p class="note">A real version will require verified X identity, server-side game creation, and protected delivery of eligible codes. Nothing typed here is uploaded.</p>
+<p class="note"><b>Hosting a Gaming Network signup lobby is different from creating a Fortnite or Warzone match.</b> A game host must create the actual in-game session and share joining instructions through an authorized private channel. X login is required for real signup lobbies; redeemable codes and in-game matchmaking are not automated. Demo-only codes are discarded.</p>
 </section>
 <section class="panel">
 <h2>02 / Live lobby preview</h2><p class="caption">Join with sample names, try first-come entry or a five-minute draw.</p>
@@ -135,7 +135,7 @@ if(inviteValid){
 }
 $('create').addEventListener('submit',async e=>{e.preventDefault();
  if(inviteValid){
-   const mapping={'High Scores':'arcade-runner','Neon Targets':'arcade-targets','Poker Now':'poker','Trivia':'trivia','Code Drop':'code-drop','Giveaway':'giveaway','Custom Game':'trivia'};
+   const mapping={'High Scores':'arcade-runner','Neon Targets':'arcade-targets','Fortnite':'fortnite','Call of Duty: Warzone':'warzone','Apex Legends':'apex-legends','Rocket League':'rocket-league','Minecraft':'minecraft','Roblox':'roblox','Valorant':'valorant','Other Multiplayer Game':'custom-multiplayer','Poker Now':'poker','Trivia':'trivia','Code Drop':'code-drop','Giveaway':'giveaway','Custom Game':'custom-multiplayer'};
    const platforms={'Discord':'discord','PC':'pc','PlayStation':'playstation','Xbox':'xbox','Mobile':'mobile','Web':'web'};
    const payload={inviteToken:invite,game:mapping[$('game').value]||'arcade-runner',platform:platforms[$('platform').value]||'web',title:$('title').value.trim(),mode:$('rule').value==='random'?'lottery':'first',seats:Number($('seats').value),roundSeconds:Number($('roundTime').value)};
    $('privateCode').value='';
