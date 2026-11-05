@@ -152,20 +152,22 @@ export async function start(env = process.env) {
         credentials_configured: !!s.bearer, last_checked: state.last_checked });
       return;
     }
-    // Public preview only: the browser demo performs no backend calls.
-    if (req.method === 'GET' && (url.pathname === '/setup' || url.pathname === '/')) {
+    // Static, local-browser previews only. The X API is not called here.
+    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html' };
+    if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(staticPages, url.pathname)) {
       try {
-        const html = await fs.readFile(new URL('./demo.html', import.meta.url));
+        const html = await fs.readFile(new URL('./' + staticPages[url.pathname], import.meta.url));
         res.writeHead(200, {
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
           'x-robots-tag': 'noindex, nofollow',
+          'referrer-policy': 'no-referrer',
           'x-content-type-options': 'nosniff',
           'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         });
         res.end(html);
       } catch (err) {
-        console.error('Could not load setup preview:', err.code || err.message);
+        console.error('Could not load game preview:', err.code || err.message);
         send(503, { error: 'Preview unavailable' });
       }
       return;

@@ -47,3 +47,6 @@ When explicitly deployed, the service exposes `GET /health` for Railway health c
 For the actual mention-to-lobby workflow, add owner account OAuth user authorization, a signed one-use setup link, an authenticated public website, API-backed player identity/lobby state, retry/anti-spam safeguards, and an opt-in confirmation step before posting a reply. Follow X API rate limits and pay-per-use billing before enabling scheduled polling.
 
 Code sanity check: `node listener.test.mjs`. Docker builds run the same test automatically. Do not expose the admin endpoint or use a predictable admin token.
+
+## Preview pages
+Once a Railway service domain is assigned, browse `/setup` for the **demo-only** game picker/lobby and `/high-scores` for the original Comet Hop and Neon Targets arcade. The arcade stores scores in the browser; these are not shared, tamper-proof, or prize eligible. These routes need no X API access or credentials. **Do not send or accept real redeemable promo codes through these demos.**
