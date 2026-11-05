@@ -26,7 +26,8 @@ assert.equal(openJoinInstructions(sealed,secret),plaintext);
 assert.ok(!JSON.stringify(sealed).includes('secret123'));
 assert.notEqual(sealJoinInstructions(plaintext,secret).data,sealed.data);
 assert.throws(() => openJoinInstructions(sealed,'wrong-encryption-secret'), /auth|authenticate|Unsupported/i);
-const tampered={...sealed, data:sealed.data.slice(0,-1)+(sealed.data.endsWith('A')?'B':'A')};
+const altered=Buffer.from(sealed.data,'base64url');altered[0]^=0x01;
+const tampered={...sealed, data:altered.toString('base64url')};
 assert.throws(() => openJoinInstructions(tampered,secret), /auth|authenticate/i);
 
 const lobby={ownerXId:'123', status:'open', winners:[]};
