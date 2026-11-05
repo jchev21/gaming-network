@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import { createLobbyApi } from './lobby-api.mjs';
-import { createLobby, joinLobby } from './game-core.mjs';
+import { createLobby, joinLobby, publicLobby } from './game-core.mjs';
 import { parseFeedQuery, buildPublicFeed } from './public-feed.mjs';
 
 {
@@ -61,6 +61,29 @@ import { parseFeedQuery, buildPublicFeed } from './public-feed.mjs';
   );
   assert.equal(second.games.length, 1);
   assert.equal(second.games[0].id, a.id);
+
+  const timed = createLobby(
+    { game: 'fortnite', title: 'Timed feed draw', seats: 2, mode: 'lottery', platform: 'pc' },
+    '3001',
+    now,
+    'timed-feed-lottery',
+  );
+  for (const [id, name] of [['3002', '@one'], ['3003', '@two'], ['3004', '@three']]) {
+    joinLobby(timed, id, name, now + 10);
+  }
+  let randomCalls = 0;
+  const timedPage = buildPublicFeed(
+    { [timed.id]: timed },
+    parseFeedQuery(new URLSearchParams('status=ready')),
+    () => timed.entryClosesAt,
+    max => { randomCalls++; return max - 1; },
+  );
+  assert.equal(timedPage.games[0].status, 'ready');
+  assert.equal(timedPage.games[0].confirmedCount, 2);
+  assert.equal(randomCalls, 2, 'status filtering uses the injected source only for the one deadline draw');
+  assert.equal(publicLobby(timed, timed.entryClosesAt, () => {
+    throw new Error('Finalized public lobbies must not draw again');
+  }).entries.filter(entry => entry.selected).length, 2);
   console.log('\u2713 buildPublicFeed order, filters, cursor, privacy');
 }
 
