@@ -50,3 +50,40 @@ Code sanity check: `node listener.test.mjs`. Docker builds run the same test aut
 
 ## Preview pages
 Once a Railway service domain is assigned, browse `/setup` for the **demo-only** game picker/lobby and `/high-scores` for the original Comet Hop and Neon Targets arcade. The arcade stores scores in the browser; these are not shared, tamper-proof, or prize eligible. These routes need no X API access or credentials. **Do not send or accept real redeemable promo codes through these demos.**
+
+## X-verified game lobbies (isolated implementation)
+
+This next phase is prepared on branch `feature/x-verified-lobbies`. It adds `game-core.mjs`, `lobby-api.mjs`, `x-auth.mjs`, and unit tests; it does **not** change the production Discord bot or the existing Gaming Network API.
+
+### X Developer Console: required user authentication settings
+- Enable **User authentication settings** for a Web App / confidential client and OAuth 2.0 authorization code with PKCE.
+- Callback URL: `https://x-game-intake-production.up.railway.app/auth/x/callback` (must match EXACTLY in X console and Railway).
+- Website URL: `https://x-game-intake-production.up.railway.app`.
+- Request only `tweet.read` and `users.read` for player sign-in. No `tweet.write`, no reply automation, and no access to protected APIs.
+- Configure these variables **privately under the Railway x-game-intake service, never in GitHub**:
+  - `X_CLIENT_ID`: your X OAuth 2.0 Client ID
+  - `X_CLIENT_SECRET`: X OAuth Client Secret if provided for your confidential app
+  - `X_CALLBACK_URL`: `https://x-game-intake-production.up.railway.app/auth/x/callback`
+  - `X_PUBLIC_ORIGIN`: `https://x-game-intake-production.up.railway.app`
+  - `X_ADMIN_TOKEN`: a separate randomly generated 32-byte+ secret for moderator actions
+  - Keep `X_POLL_ENABLED=false` until you intentionally run a bounded mention test
+- A bearer token alone cannot verify the identity of visitors or authorize posts as the account.
+
+### Flow after credentials and a fresh mention
+1. A qualifying new mention of `@jordan__chev` is saved by the read-only listener, with the immutable X author ID and post ID. There are **no automatic X replies**.
+2. A trusted moderator explicitly approves that post through `POST /admin/invites`, using the private `X_ADMIN_TOKEN` bearer authorization. Body: `{"post_id":"POST_ID"}`.
+3. The server creates a one-time, 24-hour setup URL tied to the **author's X user ID**, not their display name. Only the moderator receives the returned URL; it is **not posted** anywhere automatically.
+4. After the original author signs in to X via PKCE, the setup page creates a persistent server-side lobby and consumes the invitation. Any other X account is rejected.
+5. Participants sign in to X and may join a lobby **once per X user ID**. First-come seating closes when full; five-minute random entry closes after five minutes and is drawn using server-side cryptographic randomness.
+6. The public `GET /api/lobbies/:id` returns only safe game status and display names, never raw X account IDs or any private promo/redeem code.
+
+### Not completed
+- This is not yet connected to sending replies on X, the old Poker Now challenge API, or Discord notifications.
+- No X Client ID/Client Secret has been provided to Railway, so verified login is **not yet enabled**.
+- A real host must supply/authorize any externally hosted poker table. This app does not book Poker Now seats automatically.
+- No verified arcade scoring, prizes, payouts, or real redemption; never trust a browser's score as proof.
+- Multiple live replicas must not concurrently edit the JSON state volume; this phase expects **one** Railway replica. Move to transactional database before horizontal scaling.
+- Backups, moderation UI, privacy policy and rate/abuse controls need additional hardening before public launch.
+
+### Tests
+Run `node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node lobby-api.test.mjs`. The Dockerfile runs all four test suites during build.
