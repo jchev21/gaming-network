@@ -5,8 +5,10 @@ import path from 'node:path';
 import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry,joinWaitlist,replaceNoShow} from './game-core.mjs';
 import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
 import {createRateLimiter} from './rate-limit.mjs';
+import {parseFeedQuery,buildPublicFeed,publicFeedHeaders} from './public-feed.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
+const sendPublic=(res,status,body)=>{res.writeHead(status,publicFeedHeaders());res.end(JSON.stringify(body))};
 const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
@@ -25,6 +27,20 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  function isModerator(req){const u=auth.authenticated(req);return /^\d+$/.test(String(moderatorXId||'')) && u && u.id===String(moderatorXId)}
  async function handle(req,res,url){
   const method=req.method||'GET',pathname=url.pathname;
+  // Public read-only lobby discovery for the website (no auth, no private fields).
+  if(method==='GET'&&pathname==='/api/lobbies'){
+   try{
+    guard('public-feed:'+(req.headers['x-forwarded-for']||req.socket?.remoteAddress||'anon').toString().slice(0,64),60);
+    const query=parseFeedQuery(url.searchParams);
+    const result=await serial(touch=>{
+     // Finalize open lobbies that may have expired while building the feed.
+     for(const g of Object.values(db.lobbies)){const prev=g.status;publicLobby(g,now());if(g.status!==prev)touch()}
+     return buildPublicFeed(db.lobbies,query,now);
+    },'on-touch');
+    sendPublic(res,200,result);
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
+   return true;
+  }
   // Viewer-scoped list: never expose other players' account IDs or private instructions.
   if(method==='GET'&&pathname==='/api/my-games'){
    try{
