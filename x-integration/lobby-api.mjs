@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry,joinWaitlist,replaceNoShow} from './game-core.mjs';
 import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
+import {createRateLimiter} from './rate-limit.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
 const err=(code,message,status=400)=>new LobbyError(code,message,status);
@@ -15,6 +16,8 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
  let queue=Promise.resolve();
+ const limiter=createRateLimiter({now});
+ const guard=(key,limit=20)=>limiter.check(key,{limit,windowMs:60_000});
  async function serial(fn,write=true){const task=queue.then(async()=>{let touched=false;const result=await fn(()=>{touched=true});if(write===true||(write==='on-touch'&&touched))await save(file,db);return result});queue=task.catch(()=>{});return task}
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
@@ -54,6 +57,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    if(!viaSession&&!admin(req)){send(res,401,{error:'Unauthorized'});return true}
    try{
     if(viaSession)origin(req);
+    guard(viaSession?'mod:'+String(auth.authenticated(req)?.id):'admin:invites',12);
     const body=await readBody(req);
     const result=await serial(()=>{
      const post=(mentions.pending||[]).find(p=>p.post_id===String(body.post_id||''));
@@ -68,7 +72,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    return true;
   }
   if(method==='POST'&&pathname==='/api/lobbies'){
-   try{origin(req);const user=who(req),body=await readBody(req);
+   try{origin(req);const user=who(req);guard('create:'+user.id,10);const body=await readBody(req);
     const result=await serial(()=>{
      const token=String(body.inviteToken||'');
      if(!/^[A-Za-z0-9_-]{43}$/.test(token))throw err('INVITE_REQUIRED','Valid invitation required',403);
@@ -85,7 +89,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(manage && ((manage[2]==='me' && method==='GET') || (method==='POST' && manage[2]!=='me'))) {
    try {
     const actor=who(req);
-    if(method==='POST') origin(req);
+    if(method==='POST'){origin(req);guard('manage:'+manage[2]+':'+actor.id,20);}
     const body=manage[2]==='replace'&&method==='POST'?await readBody(req):null;
     const result=await serial(()=>{
      const game=db.lobbies[manage[1]];
@@ -131,7 +135,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const actor=who(req);
     if(!joinSecretKey)throw err('NOT_CONFIGURED','Host joining instructions are unavailable',503);
     let body=null;
-    if(method==='POST'){origin(req);body=await readBody(req)}
+    if(method==='POST'){origin(req);guard('join-details:'+actor.id,10);body=await readBody(req)}
     const result=await serial(touch=>{
      const g=db.lobbies[privateMatch[1]];
      if(!g)throw err('NOT_FOUND','Game not found',404);
@@ -155,7 +159,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
   if(match&&match[2]&&method==='POST'){
-   try{origin(req);const user=who(req);const result=await serial(()=>{
+   try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
     joinLobby(g,user.id,'@'+user.username,now());return publicLobby(g,now());
    });send(res,200,{game:result})

@@ -110,3 +110,7 @@ Full first-come lobbies can accept up to 100 additional authenticated players on
 
 ### Imported security hardening (isolated host branch)
 Reviewed and manually ported from Claude draft PR #8: bounded OAuth pending flows (maximum 2,000; HTTP 429), constant-time hashed admin authorization, and mutation-aware persistence for public lobby and private join-details reads. These changes do not enable X polling, replies, or any production deployment. The JSON store is still single-replica; Grok is drafting a transactional storage migration in issue #10. Dedicated instruction-key rotation remains a separate planned security change.
+
+
+### Action-rate limits and minimum-seats policy (branch only)
+An in-process sliding-window limiter now caps authenticated join requests, host approvals, private-instruction updates and management actions per verified X user/admin identity. Tests cover limit exhaustion, expiry and bounded memory. This does not replace edge/IP limits or a shared Redis/Postgres limiter when scaled to multiple replicas. First-come signup games that reach the cutoff with too few players now finalize as **closed without winners or confirmed seats**, and cannot deliver selected-player join instructions. The host may create a new game to restart the round. These changes are staged on the development branch only.

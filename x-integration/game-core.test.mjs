@@ -102,4 +102,11 @@ const lottoStandby=createLobby({...config,mode:'lottery'},'900',t,'no-lottery-wa
 joinLobby(lottoStandby,'998','Entrant',t+10);
 finalizeLobby(lottoStandby,t+300000);
 assert.throws(()=>joinWaitlist(lottoStandby,'997','No lottery standby',t+300001),e=>e.code==='NOT_FULL');
+const incomplete=createLobby({...config,seats:5,mode:'first'},'999',t,'incomplete');
+joinLobby(incomplete,'302','Only one entrant',t+1);
+finalizeLobby(incomplete,t+300001);
+assert.equal(incomplete.status,'closed');
+assert.equal(incomplete.winners.length,0);
+assert.equal(publicLobby(incomplete).confirmedCount,0);
+assert.equal(publicLobby(incomplete).entries[0].selected,false);
 console.log('Game core tests passed: first-come, five-minute lottery, identity, limits, privacy, finalization');

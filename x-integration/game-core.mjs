@@ -50,7 +50,7 @@ export function finalizeLobby(lobby, now = Date.now(), random = randomInt) {
     if (lobby.entries.length >= lobby.seats) lobby.status = 'ready';
     else if (now >= lobby.entryClosesAt) lobby.status = 'closed';
     if (lobby.status !== 'open') {
-      lobby.winners = lobby.entries.slice(0, lobby.seats).map(e => e.xId);
+      lobby.winners = lobby.status === 'ready' ? lobby.entries.slice(0, lobby.seats).map(e => e.xId) : [];
       lobby.finalizedAt = now;
     }
   } else if (now >= lobby.entryClosesAt) {
@@ -186,7 +186,7 @@ export function publicLobby(lobby, now = Date.now()) {
     entryCount: lobby.entries.length,
     waitlistCount: lobby.status === 'cancelled' ? 0 : (lobby.waitlist || []).length,
     waitlist: lobby.status === 'cancelled' ? [] : (lobby.waitlist || []).map((e,i) => ({name:e.name,position:i+1})),
-    confirmedCount: lobby.status === 'cancelled' ? 0 : lobby.mode === 'lottery' ? selected.size : Math.min(lobby.entries.length, lobby.seats),
+    confirmedCount: (lobby.status === 'cancelled' || lobby.status === 'closed') ? 0 : lobby.mode === 'lottery' ? selected.size : Math.min(lobby.entries.length, lobby.seats),
     // Never expose X IDs, internal keys, redeem codes, or random seeds.
     entries: lobby.entries.slice(0, 200).map(e => ({
       name: e.name, selected: lobby.status === 'open' ? null : selected.has(e.xId),
