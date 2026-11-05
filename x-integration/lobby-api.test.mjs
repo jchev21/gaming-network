@@ -28,6 +28,9 @@ try{
  const join1=await req('/api/lobbies/'+gameId+'/join','POST',{}, {'x-test-user':'10002'});assert.equal(join1.code,200);
  const duplicate=await req('/api/lobbies/'+gameId+'/join','POST',{}, {'x-test-user':'10002'});assert.equal(duplicate.code,409);
  const join2=await req('/api/lobbies/'+gameId+'/join','POST',{}, {'x-test-user':'10003'});assert.equal(join2.code,200);assert.equal(join2.body.game.status,'ready');
+ const lobbyFile=path.join(dir,'x-lobbies.json');const mtime=(await fs.stat(lobbyFile)).mtimeMs;
+ await new Promise(r=>setTimeout(r,20));for(let i=0;i<5;i++)await req('/api/lobbies/'+gameId);
+ assert.equal((await fs.stat(lobbyFile)).mtimeMs,mtime,'public reads must not rewrite the database');
  const after=await req('/api/lobbies/'+gameId);assert.equal(after.body.game.confirmedCount,2);
  assert.ok(!JSON.stringify(after.body).includes('ownerXId'));
  const instructionsPath='/api/lobbies/'+gameId+'/join-details';
