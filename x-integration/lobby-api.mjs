@@ -9,7 +9,7 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',publicOrigin,now=Date.now}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
@@ -18,11 +18,26 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
  function who(req){const user=auth.authenticated(req);if(!user)throw err('AUTH_REQUIRED','Sign in with X first',401);return user}
+ function isModerator(req){const u=auth.authenticated(req);return /^\d+$/.test(String(moderatorXId||'')) && u && u.id===String(moderatorXId)}
  async function handle(req,res,url){
   const method=req.method||'GET',pathname=url.pathname;
-  if(method==='POST'&&pathname==='/admin/invites'){
-   if(!admin(req)){send(res,401,{error:'Unauthorized'});return true}
-   try{const body=await readBody(req);const result=await serial(()=>{
+  if(method==='GET'&&pathname==='/api/moderation/mentions'){
+   if(!isModerator(req)){send(res,403,{error:'Moderator X sign-in required'});return true}
+   const requests=(mentions.pending||[]).slice(0,100).map(p=>({
+     post_id:p.post_id,created_at:p.created_at,request_type:p.request_type,
+     excerpt:p.excerpt,status:p.status,
+     game_created:Object.values(db.lobbies).some(g=>g.sourcePostId===p.post_id)
+   }));
+   send(res,200,{requests});return true;
+  }
+  if(method==='POST'&&(pathname==='/admin/invites'||pathname==='/api/moderation/approve')){
+   const viaSession=pathname==='/api/moderation/approve';
+   if(viaSession&&!isModerator(req)){send(res,403,{error:'Moderator X sign-in required'});return true}
+   if(!viaSession&&!admin(req)){send(res,401,{error:'Unauthorized'});return true}
+   try{
+    if(viaSession)origin(req);
+    const body=await readBody(req);
+    const result=await serial(()=>{
      const post=(mentions.pending||[]).find(p=>p.post_id===String(body.post_id||''));
      if(!post||!/^\d+$/.test(post.author_id))throw err('MENTION_NOT_FOUND','Recognized mention not found',404);
      if(Object.values(db.lobbies).some(g=>g.sourcePostId===post.post_id))throw err('ALREADY_USED','Mention already has a game',409);
@@ -30,7 +45,9 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      for(const [k,v]of Object.entries(db.invites))if(v.postId===post.post_id&&!v.usedAt)delete db.invites[k];
      db.invites[key]={postId:post.post_id,ownerXId:post.author_id,createdAt:now(),expiresAt:now()+86400000,usedAt:null};
      return{setupUrl:publicOrigin+'/setup?invite='+encodeURIComponent(raw),expiresAt:db.invites[key].expiresAt};
-   });send(res,201,result)}catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+    });send(res,201,result);
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}
+   return true;
   }
   if(method==='POST'&&pathname==='/api/lobbies'){
    try{origin(req);const user=who(req),body=await readBody(req);
