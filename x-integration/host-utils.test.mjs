@@ -22,10 +22,11 @@ assert.throws(() => validateJoinInstructions('x'), e => e.code==='INVALID_INSTRU
 const secret='a-private-admin-secret-with-high-entropy';
 const plaintext='Join my party using private key "secret123" after you are selected.';
 const sealed=sealJoinInstructions(plaintext,secret);
+assert.equal(sealed.v, 2);
 assert.equal(openJoinInstructions(sealed,secret),plaintext);
 assert.ok(!JSON.stringify(sealed).includes('secret123'));
 assert.notEqual(sealJoinInstructions(plaintext,secret).data,sealed.data);
-assert.throws(() => openJoinInstructions(sealed,'wrong-encryption-secret'), /auth|authenticate|Unsupported/i);
+assert.throws(() => openJoinInstructions(sealed,'wrong-encryption-secret-at-least-32chars!!'), /auth|authenticate|Unsupported|X_JOIN_SECRET/i);
 const altered=Buffer.from(sealed.data,'base64url');altered[0]^=0x01;
 const tampered={...sealed, data:altered.toString('base64url')};
 assert.throws(() => openJoinInstructions(tampered,secret), /auth|authenticate/i);
