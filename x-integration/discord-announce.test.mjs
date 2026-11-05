@@ -197,4 +197,63 @@ const VALID_WEBHOOK =
   console.log('\u2713 non-Discord webhook URL disables bridge');
 }
 
+{
+  const rendered = formatDiscordContent({
+    event: 'ready', title: '@everyone **fake link https://evil.test**',
+    host: '@here', game: 'fortnite', platform: 'pc', mode: 'first',
+    seats: 2, confirmedCount: 2, waitlistCount: 0,
+    lobbyUrl: 'https://games.example/lobby?id=safe',
+  });
+  assert.ok(!rendered.includes('@everyone'));
+  assert.ok(!rendered.includes('@here'));
+  assert.ok(!rendered.includes('https://evil.test'));
+  assert.ok(rendered.includes('https://games.example/lobby?id=safe'));
+  console.log('✓ untrusted titles and display names cannot inject pings or hyperlinks');
+}
+
+{
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'gn-ann-drain-'));
+  let clock = 1000, attempts = 0;
+  const bridge = createDiscordAnnounceBridge({
+    enabled: true,
+    webhookUrl: VALID_WEBHOOK,
+    publicOrigin: 'https://games.example',
+    dataDir: dir,
+    now: () => clock,
+    retryIntervalMs: 100,
+    transport: async () => {
+      attempts++;
+      if (attempts === 1) {
+        const error = new Error('synthetic HTTP 503');
+        error.retryable = true;
+        throw error;
+      }
+      return { status: 204 };
+    },
+  });
+  try {
+    const lobby = createLobby({ game: 'minecraft', title: 'Timer recovery', seats: 2, mode: 'first' }, '1001', clock);
+    joinLobby(lobby, '2002', '@player', clock + 1);
+    await bridge.enqueue(lobby);
+    assert.equal(bridge.start(), true);
+    assert.equal(bridge.start(), false, 'must not create duplicate drain timers');
+    // First scheduled drain fails. Advance the mocked clock past the retry deadline.
+    for (let i = 0; i < 40 && attempts < 1; i++) {
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.equal(attempts, 1);
+    clock += 2500;
+    for (let i = 0; i < 40 && attempts < 2; i++) {
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.equal(attempts, 2, 'retry timer should drain without an unrelated lobby event');
+    const stored = JSON.parse(await fs.readFile(bridge.outboxFile, 'utf8'));
+    assert.ok(stored.sent[announcementKey(lobby.id, 'ready')]);
+    console.log('✓ opt-in retry timer drains pending work after a transient failure');
+  } finally {
+    bridge.stop();
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+}
+
 console.log('\nAll discord-announce tests passed.');
