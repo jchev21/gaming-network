@@ -1,0 +1,13 @@
+# Games + X workstream tests
+
+## Required commands and results
+
+| Command | Result |
+| --- | --- |
+| `cd x-integration && npm test` | NOT RUN — this environment provides GitHub file-write operations only, not a local shell/Node runtime. |
+| `node --check x-integration/listener.mjs` | NOT RUN — Node runtime unavailable. |
+| `node --check x-integration/lobby-api.mjs` | NOT RUN — Node runtime unavailable. |
+| `node x-integration/bridge-contracts.test.mjs` | NOT RUN — Node runtime unavailable. |
+| `docker build -f x-integration/Dockerfile -t gn-games-x-test x-integration` | NOT RUN — Docker runtime unavailable. |
+
+No green result is implied. Run these commands from a checkout of `ai/games-x` before integrating. The added test can be run directly with Node 24, or included in the repository's `npm test` and Docker test lists after local verification.
