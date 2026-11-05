@@ -25,3 +25,15 @@ jobs:
           node-version: '24'
       - name: Test game core, private host instructions, X auth and lobby API
         run: npm test
+
+  container-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Build production Docker image and run its embedded tests
+        run: docker build --pull -f x-integration/Dockerfile -t gaming-network-x-intake:ci x-integration
+      - name: Validate runtime module loading in the built image
+        run: |
+          docker run --rm --entrypoint node gaming-network-x-intake:ci -e "Promise.all([import('./listener.mjs'),import('./lobby-api.mjs'),import('./host-utils.mjs')]).then(() => console.log('Runtime imports OK'))"
