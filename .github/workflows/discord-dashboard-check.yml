@@ -22,10 +22,14 @@ jobs:
           python-version: "3.12"
       - name: Unit test dashboard signatures
         run: python -m unittest discover -s discord-bot -p 'test_dashboard_refresh.py' -v
+      - name: Unit test safe native X lobbies feed
+        run: python -m unittest discover -s discord-bot -p 'test_native_hub_feeds.py' -v
       - name: Check all Python sources compile
         run: python -m compileall -q discord-bot
       - name: Build production Discord bot container
         run: docker build -t gn-discord-hub-bot:ci discord-bot
+      - name: Verify Discord Components V2 runtime in deployed image
+        run: docker run --rm --entrypoint python gn-discord-hub-bot:ci -c "import discord; from native_hub_feeds import public_lobby_lines; assert hasattr(discord.ui, 'LayoutView'); assert hasattr(discord.ui, 'MediaGallery'); assert hasattr(discord.ui, 'TextDisplay'); print('Discord Components V2 runtime ready:', discord.__version__)"
       - name: Check dashboard async handlers
         run: |
           python - <<'PY'
