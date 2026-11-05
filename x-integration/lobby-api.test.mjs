@@ -97,5 +97,37 @@ try{
  assert.equal(withdrawnGames.body.games.find(g=>g.id===gameId)?.status,'cancelled');
  assert.ok(!JSON.stringify(persisted).includes('JOIN-TEST-KEY'));
  assert.ok(persisted.joinSecrets[gameId].iv);
+
+ // End-to-end HTTP test of waitlist, selection and private access revocation.
+ mentions.pending.push({post_id:'33333333',author_id:'10001',excerpt:'@jordan__chev host Fortnite'});
+ const a3=await req('/admin/invites','POST',{post_id:'33333333'},{authorization:'Bearer test-server-private-encryption-key'});
+ assert.equal(a3.code,201);
+ const t3=new URL(a3.body.setupUrl).searchParams.get('invite');
+ const newGame=await req('/api/lobbies','POST',{...config,inviteToken:t3,game:'fortnite',mode:'first',seats:2},{'x-test-user':'10001'});
+ assert.equal(newGame.code,201);
+ const gid3=newGame.body.game.id,p3='/api/lobbies/'+gid3;
+ assert.equal((await req(p3+'/join','POST',{}, {'x-test-user':'10002'})).code,200);
+ assert.equal((await req(p3+'/join','POST',{}, {'x-test-user':'10003'})).body.game.status,'ready');
+ assert.equal((await req(p3+'/me','GET',undefined,{'x-test-user':'10004'})).body.canWaitlist,true);
+ assert.equal((await req(p3+'/waitlist','POST',{}, {'x-test-user':'10004'})).body.game.waitlistCount,1);
+ assert.equal((await req(p3+'/waitlist','POST',{}, {'x-test-user':'10005'})).body.game.waitlistCount,2);
+ assert.equal((await req(p3+'/waitlist','POST',{}, {'x-test-user':'10004'})).body.error,'WAITLISTED');
+ assert.equal((await req(p3+'/replace','POST',{seat:0},{'x-test-user':'10004'})).code,403);
+ assert.equal((await req(p3+'/replace','POST',{seat:0})).code,401);
+ const notes='Private Fortnite room code HOST-TEST-ALPHA';
+ assert.equal((await req(p3+'/join-details','POST',{instructions:notes},{'x-test-user':'10001'})).code,200);
+ assert.equal((await req(p3+'/join-details','GET',undefined,{'x-test-user':'10002'})).body.instructions,notes);
+ const changed=await req(p3+'/replace','POST',{seat:0},{'x-test-user':'10001'});
+ assert.equal(changed.code,200);
+ assert.equal(changed.body.game.waitlistCount,1);
+ assert.equal(changed.body.game.entries.find(e=>e.name==='@10004')?.seat,0);
+ assert.equal((await req(p3+'/join-details','GET',undefined,{'x-test-user':'10002'})).code,403);
+ assert.equal((await req(p3+'/join-details','GET',undefined,{'x-test-user':'10004'})).body.instructions,notes);
+ assert.equal((await req(p3+'/waitlist','POST',{}, {'x-test-user':'10002'})).body.error,'REMOVED');
+ assert.equal((await req(p3+'/withdraw','POST',{}, {'x-test-user':'10005'})).body.game.waitlistCount,0);
+ assert.equal((await req(p3+'/me','GET',undefined,{'x-test-user':'10005'})).body.withdrawn,true);
+ const privateList=await req('/api/my-games','GET',undefined,{'x-test-user':'10002'});
+ assert.equal(privateList.body.games.find(e=>e.id===gid3)?.viewerRole,'removed');
+ assert.ok(!JSON.stringify(privateList.body).includes('HOST-TEST-ALPHA'));
  console.log('Lobby API tests passed');
 }finally{server.close();await fs.rm(dir,{recursive:true,force:true})}
