@@ -2,6 +2,11 @@
   "name": "gaming-network-x-intake",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
-  "scripts": { "start": "node listener.mjs", "test": "node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node lobby-api.test.mjs && node host-utils.test.mjs && node rate-limit.test.mjs" }
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node listener.mjs",
+    "test": "node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node lobby-api.test.mjs && node host-utils.test.mjs && node rate-limit.test.mjs && node discord-announce.test.mjs && node lobby-announce-commit.test.mjs"
+  }
 }

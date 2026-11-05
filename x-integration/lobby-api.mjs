@@ -12,15 +12,18 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||''}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save,announceBridgeFactory=createDiscordAnnounceBridge}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
- const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
+ const file=path.join(dataDir,'x-lobbies.json');
+ let db=await load(file);
  let queue=Promise.resolve();
  const limiter=createRateLimiter({now});
  const guard=(key,limit=20)=>limiter.check(key,{limit,windowMs:60_000});
  // Opt-in Discord lobby announcements (disabled unless env explicitly enables).
- const announceBridge=createDiscordAnnounceBridge({dataDir,publicOrigin,now});
+ const announceBridge=announceBridgeFactory({dataDir,publicOrigin,now});
+ // Opt-in retry drain for pending events after restart/backoff; OFF means no timers.
+ announceBridge.start?.();
  const maybeAnnounce=(lobby,event='ready')=>{
   try{
    if(!announceBridge.config.enabled||!lobby)return;
@@ -28,7 +31,27 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    if(event==='cancelled'&&lobby.status==='cancelled')announceBridge.notifyLobbyCancelled(lobby).catch(()=>{});
   }catch(_){/* never break lobby API on announce failure */}
  };
- async function serial(fn,write=true){const task=queue.then(async()=>{let touched=false;const result=await fn(()=>{touched=true});if(write===true||(write==='on-touch'&&touched))await save(file,db);return result});queue=task.catch(()=>{});return task}
+ async function serial(fn,write=true){
+  const task=queue.then(async()=>{
+   let touched=false;
+   const afterCommit=[];
+   try{
+    const result=await fn(()=>{touched=true},(lobby,event)=>afterCommit.push({lobby:structuredClone(lobby),event}));
+    if(write===true||(write==='on-touch'&&touched))await saveState(file,db);
+    // A failed disk write must never trigger an announcement.
+    for(const item of afterCommit)maybeAnnounce(item.lobby,item.event);
+    return result;
+   }catch(error){
+    // Domain methods may mutate in-memory state before throwing, or the
+    // filesystem may reject the commit. Reload the LAST durable snapshot
+    // so later requests cannot accidentally persist a failed operation.
+    try{db=await load(file)}catch(_){/* preserve the original request failure */}
+    throw error;
+   }
+  });
+  queue=task.catch(()=>{});
+  return task;
+ }
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
  function who(req){const user=auth.authenticated(req);if(!user)throw err('AUTH_REQUIRED','Sign in with X first',401);return user}
@@ -101,7 +124,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const actor=who(req);
     if(method==='POST'){origin(req);guard('manage:'+manage[2]+':'+actor.id,20);}
     const body=manage[2]==='replace'&&method==='POST'?await readBody(req):null;
-    const result=await serial(()=>{
+    const result=await serial((touch,afterCommit)=>{
      const game=db.lobbies[manage[1]];
      if(!game)throw err('NOT_FOUND','Game not found',404);
      publicLobby(game,now());
@@ -116,7 +139,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      if(manage[2]==='cancel') {
       cancelLobby(game,actor.id,now());
       delete db.joinSecrets[game.id]; // revoke private instructions for former selected players
-      maybeAnnounce(game,'cancelled');
+      afterCommit(game,'cancelled');
       return {game:publicLobby(game,now())};
      }
      if(manage[2]==='withdraw') {
@@ -170,13 +193,13 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
   if(match&&match[2]&&method==='POST'){
-   try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
+   try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial((touch,afterCommit)=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
-    joinLobby(g,user.id,'@'+user.username,now());const view=publicLobby(g,now());maybeAnnounce(g,'ready');return view;
+    joinLobby(g,user.id,'@'+user.username,now());const view=publicLobby(g,now());afterCommit(g,'ready');return view;
    });send(res,200,{game:result})
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
   return false;
  }
- return{handle};
+ return{handle,close:()=>announceBridge.stop?.()};
 }
