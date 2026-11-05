@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +33,21 @@ export function classifyMention(post, handle, ownUserId) {
     request_type: /poker/i.test(body) ? 'poker' : /giveaway/i.test(body) ? 'giveaway' : /code[ -]?drop/i.test(body) ? 'code-drop' : 'game',
     excerpt: body.slice(0, 240),
   };
+}
+export function requiredPublicOrigin(env = process.env) {
+  const value=env.X_PUBLIC_ORIGIN;
+  if(typeof value!=='string' || !/^https:\/\/[^/?#\s:@]+(?::\d{1,5})?$/.test(value))
+    throw new Error('X_PUBLIC_ORIGIN must explicitly be set to a single secure HTTPS origin');
+  const parsed=new URL(value);
+  if(parsed.origin!==value||!parsed.hostname)
+    throw new Error('X_PUBLIC_ORIGIN must have no path, query, fragment or trailing slash');
+  return value;
+}
+export function adminOk(given, token) {
+  if (!token || typeof given !== 'string') return false;
+  const provided=crypto.createHash('sha256').update(given).digest();
+  const expected=crypto.createHash('sha256').update('Bearer '+token).digest();
+  return crypto.timingSafeEqual(provided,expected);
 }
 export function newestId(ids) {
   return ids.map(String).filter(x => /^\d+$/.test(x)).reduce(
@@ -142,7 +158,7 @@ export async function start(env = process.env) {
   const stateFile = path.join(s.dataDir, 'x-mentions-state.json');
   const state = await readState(stateFile);
   const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
-  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:env.X_PUBLIC_ORIGIN||'https://x-game-intake-production.up.railway.app'});
+  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:requiredPublicOrigin(env)});
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
@@ -174,7 +190,7 @@ export async function start(env = process.env) {
       return;
     }
     // Static, local-browser previews only. The X API is not called here.
-    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html' };
+    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html', '/my-games': 'my-games.html' };
     if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(staticPages, url.pathname)) {
       try {
         const html = await fs.readFile(new URL('./' + staticPages[url.pathname], import.meta.url));
@@ -194,7 +210,7 @@ export async function start(env = process.env) {
       return;
     }
     if (!url.pathname.startsWith('/admin/')) { send(404, { error: 'Not found' }); return; }
-    if (!s.admin || req.headers.authorization !== 'Bearer ' + s.admin) {
+    if (!adminOk(req.headers.authorization, s.admin)) {
       send(401, { error: 'Unauthorized' }); return;
     }
     if (req.method === 'GET' && url.pathname === '/admin/mentions') {

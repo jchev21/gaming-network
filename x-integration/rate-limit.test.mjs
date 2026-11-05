@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {createRateLimiter} from './rate-limit.mjs';
+let time=1000;const guard=createRateLimiter({now:()=>time,maxKeys:2});
+guard.check('join:u:1',{limit:2,windowMs:10000});
+guard.check('join:u:1',{limit:2,windowMs:10000});
+assert.throws(()=>guard.check('join:u:1',{limit:2,windowMs:10000}),e=>e.code==='RATE_LIMIT'&&e.status===429&&e.retryAfter===10);
+guard.check('join:u:2',{limit:2,windowMs:10000});
+guard.check('join:u:3',{limit:2,windowMs:10000});
+time+=10001;
+assert.equal(guard.check('join:u:1',{limit:2,windowMs:10000}).remaining,1);
+assert.throws(()=>guard.check('bad',{limit:0}),/Invalid rate limit policy/);
+assert.throws(()=>guard.check('bad',{windowMs:0}),/Invalid rate limit policy/);
+assert.throws(()=>guard.check(''),/Invalid rate limit identity/);
+console.log('Rate limiter tests passed');

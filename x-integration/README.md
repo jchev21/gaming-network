@@ -90,3 +90,31 @@ Run `node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs &
 
 ### Multi-title Host a Game options (signup only)
 The X game picker now offers Fortnite, Call of Duty: Warzone, Apex Legends, Rocket League, Minecraft, Roblox, Valorant and Other Multiplayer Game. These titles are supported as **Gaming Network signup lobby categories**, not as direct integrations with the games' matchmaking systems. The backend validates their enumerated IDs. The host still creates each external game session and privately shares its join details with eligible participants, subject to the game's rules. No Epic/Activision tokens, in-game lobby automation, or new score verification are enabled.
+
+
+### Multiplayer hosting batch — private instructions
+On the isolated `feature/x-host-workflow` branch, the X game picker lets a host choose mode, region, crossplay and a public Fortnite island identifier. The real server validates all public settings before accepting an X-authenticated invitation. Private game joining instructions are sent only through `POST /api/lobbies/:id/join-details` by the verified host and delivered via `GET /api/lobbies/:id/join-details` to that host or a selected player after the lobby is ready. Instructions are encrypted at rest with AES-256-GCM and the secret key from `X_JOIN_SECRET_KEY` or the existing high-entropy `X_ADMIN_TOKEN`. Public lobby responses never include private instructions or X user IDs. Actual Fortnite/Warzone game creation remains manual; this is only Gaming Network signup management.
+
+
+### Cancellation and withdrawal UX (not deployed yet)
+The browser lobby now exposes X-authenticated host cancellation and entrant withdrawal controls, and uses server-side viewer state to avoid duplicate submissions. Cancelled lobbies show a warning and hide join details; updates to encrypted joining instructions are rejected after cancellation. Withdrawals are one-way before selection closes; public lobby data does not expose internal X IDs. Changes are isolated to `feature/x-host-workflow` beyond the pinned deployed release.
+
+
+### My Games — private signed-in dashboard (development branch)
+`GET /api/my-games` requires an X-authenticated session and returns only lobbies the current immutable X user owns, entered, or withdrew from; it caps output at 50 games and excludes private matchmaking instructions and user IDs. The `/my-games` page links to the user's games and uses `/auth/x/start?next=/my-games` for sign-in when configured. The page and API are on the isolated branch; there is no automatic X posting, scanning, or live provider integration.
+
+
+### FIFO waitlist and host no-show replacement (unreleased)
+Full first-come lobbies can accept up to 100 additional authenticated players on a public-name-only waitlist. The server maintains immutable X account IDs privately, blocks duplicate/withdrawn/removed entries, and lets the host replace a selected no-show with the earliest standby player. If no standby player exists, the seat reopens for five minutes. Standby players may withdraw without losing any seats. Random-draw lobbies are intentionally excluded until a properly randomized standby order is implemented. This feature is not connected to external game matchmaking or X posting. It is only in `feature/x-host-workflow`; Railway's pinned release remains unchanged.
+
+
+### Imported security hardening (isolated host branch)
+Reviewed and manually ported from Claude draft PR #8: bounded OAuth pending flows (maximum 2,000; HTTP 429), constant-time hashed admin authorization, and mutation-aware persistence for public lobby and private join-details reads. These changes do not enable X polling, replies, or any production deployment. The JSON store is still single-replica; Grok is drafting a transactional storage migration in issue #10. Dedicated instruction-key rotation remains a separate planned security change.
+
+
+### Action-rate limits and minimum-seats policy (branch only)
+An in-process sliding-window limiter now caps authenticated join requests, host approvals, private-instruction updates and management actions per verified X user/admin identity. Tests cover limit exhaustion, expiry and bounded memory. This does not replace edge/IP limits or a shared Redis/Postgres limiter when scaled to multiple replicas. First-come signup games that reach the cutoff with too few players now finalize as **closed without winners or confirmed seats**, and cannot deliver selected-player join instructions. The host may create a new game to restart the round. These changes are staged on the development branch only.
+
+
+### Secure public origin requirement (development branch)
+The X intake now fails startup unless `X_PUBLIC_ORIGIN` is explicitly set to a single HTTPS origin (no credentials, path, query or trailing slash). This prevents invite setup URLs being issued for the wrong domain. Before advancing the tested branch to Railway, configure the exact matching public origin as a Railway environment variable, then verify OAuth callback and host link routing. The currently pinned production commit is unchanged.

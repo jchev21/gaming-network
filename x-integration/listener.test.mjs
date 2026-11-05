@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { classifyMention, newestId } from './listener.mjs';
+import { classifyMention, newestId, adminOk, requiredPublicOrigin } from './listener.mjs';
 const mine = '10000', handle = 'jordan__chev';
 function post(id, text, author_id='20000', mentions=[]) {
   return { id, text, author_id, entities: { mentions } };
@@ -12,4 +12,13 @@ assert.equal(classifyMention(post('127', '@jordan__chev please help me'), handle
 assert.equal(classifyMention(post('128', '@different start a game'), handle, mine), null);
 assert.equal(classifyMention(post('129', '@jordan__chev code drop', '20000'), handle, mine).request_type, 'code-drop');
 assert.equal(newestId(['7','15','900','12']), '900');
+assert.equal(adminOk('Bearer secret-admin-token','secret-admin-token'),true);
+assert.equal(adminOk('Bearer wrong','secret-admin-token'),false);
+assert.equal(adminOk(null,'secret-admin-token'),false);
+assert.equal(adminOk('Bearer secret-admin-token',''),false);
+assert.equal(requiredPublicOrigin({X_PUBLIC_ORIGIN:'https://x-game-intake-production.up.railway.app'}),'https://x-game-intake-production.up.railway.app');
+assert.throws(()=>requiredPublicOrigin({}),/X_PUBLIC_ORIGIN/);
+assert.throws(()=>requiredPublicOrigin({X_PUBLIC_ORIGIN:'http://example.com'}),/X_PUBLIC_ORIGIN/);
+assert.throws(()=>requiredPublicOrigin({X_PUBLIC_ORIGIN:'https://example.com/evil'}),/X_PUBLIC_ORIGIN/);
+assert.throws(()=>requiredPublicOrigin({X_PUBLIC_ORIGIN:'https://user:pass@example.com'}),/X_PUBLIC_ORIGIN/);
 console.log('X intake classifier tests passed');
