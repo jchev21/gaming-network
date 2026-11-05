@@ -1,0 +1,30 @@
+{
+  "classification": "SYNTHETIC_PREVIEW_ONLY",
+  "identities": "All names, identifiers, times and URLs below are invented; tokens and private codes are redacted.",
+  "flow": [
+    {
+      "step": "mention_received",
+      "request": { "mentionId": "100000000000000001", "authorId": "100000000000000002", "text": "@GamingNetwork host a sample Fortnite game" },
+      "result": { "accepted": true, "status": "awaiting_host_setup", "verifiedIdentity": true }
+    },
+    {
+      "step": "host_setup",
+      "request": { "game": "fortnite", "platform": "pc", "crossplay": "on", "mode": "Duos", "region": "na-east", "seats": 4, "inviteToken": "[REDACTED — never include real invite tokens]" },
+      "result": { "status": "open", "source": "SAMPLE" }
+    },
+    {
+      "step": "registrations",
+      "result": { "entryMode": "first", "entryCount": 4, "status": "ready", "waitlistPolicy": "FIFO" }
+    },
+    {
+      "step": "announcement_payload",
+      "result": {
+        "schemaVersion": 1,
+        "type": "ready",
+        "source": "gaming-network-preview",
+        "lobby": { "id": "preview-lobby-1", "title": "SAMPLE Squad Night", "game": "fortnite", "platform": "pc", "mode": "first", "status": "ready", "seats": 4, "entryCount": 4, "confirmedCount": 4, "entryClosesAt": 1793837100000 }
+      }
+    }
+  ],
+  "private_join_instructions": "NOT INCLUDED — never place secrets in public fixtures"
+}
