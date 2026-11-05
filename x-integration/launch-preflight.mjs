@@ -75,7 +75,7 @@ export function checkLaunchConfiguration(env = {}) {
     'X_API_BEARER_TOKEN is present for separately approved read-only mention checks.', false);
 
   check('moderator-id', typeof env.X_MODERATOR_USER_ID === 'string' &&
-    /^\\d{1,24}$/.test(env.X_MODERATOR_USER_ID),
+    /^[0-9]{1,24}$/.test(env.X_MODERATOR_USER_ID),
     'X_MODERATOR_USER_ID is configured for signed-in moderator approval.', false);
 
   check('persistent-data-path', typeof env.DATA_DIR === 'string' && path.isAbsolute(env.DATA_DIR),
@@ -98,12 +98,12 @@ export function formatLaunchPreflight(report) {
     ? 'Config checks pass. Real-account tests and explicit owner launch approval remain required.'
     : 'Configuration blockers remain. No services or flags have been changed.');
   lines.push(report.message);
-  return lines.join('\\n');
+  return lines.join(String.fromCharCode(10));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const result = checkLaunchConfiguration(process.env);
   // No raw variable values or secrets are logged, even when validation fails.
-  process.stdout.write(formatLaunchPreflight(result) + '\\n');
+  process.stdout.write(formatLaunchPreflight(result) + String.fromCharCode(10));
   if (!result.readyForManualTests) process.exitCode = 1;
 }
