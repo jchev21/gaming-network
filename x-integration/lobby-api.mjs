@@ -29,16 +29,16 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(method==='GET'&&pathname==='/api/my-games'){
    try{
     const actor=who(req);
-    const result=await serial(()=>{
+    const result=await serial(touch=>{
      const all=Object.values(db.lobbies).filter(g=>g.ownerXId===actor.id ||
       g.entries.some(e=>e.xId===actor.id) || (g.waitlist||[]).some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id) || (g.removedXIds||[]).includes(actor.id));
      all.sort((a,b)=>b.createdAt-a.createdAt||b.id.localeCompare(a.id));
      return {games:all.slice(0,50).map(g=>{
-      const game=publicLobby(g,now());
+      const oldStatus=g.status;const game=publicLobby(g,now());if(g.status!==oldStatus)touch();
       const role=g.ownerXId===actor.id?'host':(g.withdrawnXIds||[]).includes(actor.id)?'withdrawn':(g.removedXIds||[]).includes(actor.id)?'removed':(g.waitlist||[]).some(e=>e.xId===actor.id)?'waitlisted':'player';
       return {...game,viewerRole:role,viewerSelected:game.status==='ready'&&g.winners.includes(actor.id)};
      })};
-    });send(res,200,result)
+    },'on-touch');send(res,200,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
    return true;
   }
@@ -91,10 +91,10 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const actor=who(req);
     if(method==='POST'){origin(req);guard('manage:'+manage[2]+':'+actor.id,20);}
     const body=manage[2]==='replace'&&method==='POST'?await readBody(req):null;
-    const result=await serial(()=>{
+    const result=await serial(touch=>{
      const game=db.lobbies[manage[1]];
      if(!game)throw err('NOT_FOUND','Game not found',404);
-     publicLobby(game,now());
+     const oldStatus=game.status;publicLobby(game,now());if(game.status!==oldStatus)touch();
      if(manage[2]==='waitlist') {
       joinWaitlist(game,actor.id,'@'+actor.username,now());
       return {game:publicLobby(game,now())};
@@ -123,7 +123,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
       canReplace:isHost&&game.mode==='first'&&game.status==='ready',
       canWaitlist:!isHost&&game.mode==='first'&&game.status==='ready'&&!joined&&queuePosition<0&&!withdrawn&&!removed&&(game.waitlist||[]).length<100,
       canWithdraw:(joined&&game.status==='open')||queuePosition>=0};
-    });
+    },method==='GET'?'on-touch':true);
     send(res,200,result);
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
    return true;

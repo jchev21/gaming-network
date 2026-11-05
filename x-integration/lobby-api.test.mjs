@@ -139,5 +139,15 @@ try{
  assert.equal(throttled.body.error,'RATE_LIMIT');
  // A separate authenticated host is unaffected by another account's limit.
  assert.equal((await req(p3+'/join-details','GET',undefined,{'x-test-user':'10001'})).code,200);
+ // Verify stable viewer-only GET requests don't trigger repeated disk writes.
+ const diskPath=path.join(dir,'x-lobbies.json');
+ const oldDate=new Date('2001-01-01T00:00:00Z');
+ await fs.utimes(diskPath,oldDate,oldDate);
+ const baseline=(await fs.stat(diskPath)).mtimeMs;
+ for(let i=0;i<3;i++){
+  assert.equal((await req('/api/my-games','GET',undefined,{'x-test-user':'10001'})).code,200);
+  assert.equal((await req(p3+'/me','GET',undefined,{'x-test-user':'10004'})).code,200);
+ }
+ assert.equal((await fs.stat(diskPath)).mtimeMs,baseline,'Unchanged GET requests should not rewrite persisted JSON');
  console.log('Lobby API tests passed');
 }finally{server.close();await fs.rm(dir,{recursive:true,force:true})}
