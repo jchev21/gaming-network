@@ -11,6 +11,7 @@ a{color:#d1b7ff}.panel{border:1px solid #383155;background:#18192b;border-radius
 h1{font-size:clamp(26px,5vw,44px);line-height:1.1;margin:8px 0}h2{font-size:19px;margin:6px 0}
 small,p{color:#b9b5cd}button{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:750;cursor:pointer;background:#bb9bff;color:#15101e}
 button:disabled{opacity:.5;cursor:not-allowed}
+textarea{width:100%;padding:12px;border:1px solid #5b4f78;border-radius:10px;color:#f5f3ff;background:#111321;font:inherit}
 .stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
 .stat div{background:#25233a;padding:12px;border-radius:12px}.stat b{display:block;font-size:24px}
 ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1px solid #373451}
@@ -23,6 +24,16 @@ ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1p
 <div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button></div>
 <div class="panel"><h2>Players</h2><ul id="players"><li>Waiting for players…</li></ul>
 <p>Only verified X accounts may join once. First-come or random selection is performed by the server. This is not a prize or code redemption system.</p></div></main>
+<section id="joinDetailsPanel" class="panel" hidden>
+<h2>Private game joining instructions</h2>
+<p id="joinDetailsStatus">Only the game host and selected players can view this section. Details are not included in public lobby data.</p>
+<form id="joinEditor" hidden>
+<label for="joinInstructions">Instructions for confirmed players</label>
+<textarea id="joinInstructions" rows="4" maxlength="700" placeholder="Create the match in Fortnite, Warzone, or your chosen game. Share private party details here after the lobby is confirmed."></textarea>
+<div style="margin-top:12px"><button type="submit">Save private instructions</button></div>
+</form>
+<p id="joinInstructionsText" style="white-space:pre-wrap;color:#f5f3ff"></p>
+</section>
 <footer>Gaming Network • X sign-in required • No real-money rewards • No automatic X posting</footer>
 <script>
 const $=id=>document.getElementById(id);
@@ -39,6 +50,7 @@ async function refresh(){
   game=r.data.game;
   text('title',game.title);text('summary',fmt(game.game)+' · '+fmt(game.platform)+' · '+(game.mode==='lottery'?'Random five-minute entry':'First come, first served')+' · '+game.roundSeconds+'s game');
   text('entries',game.entryCount);text('confirmed',game.confirmedCount+' / '+game.seats);
+  if(game.host){const detail=[game.host.mode,game.host.region==='any'?'Any region':game.host.region,game.host.crossplay==='any'?'Any crossplay':'Crossplay '+game.host.crossplay,game.host.islandCode?'Island '+game.host.islandCode:''].filter(Boolean).join(' · ');if(detail)text('summary',$('summary').textContent+' · '+detail);}
   const sec=Math.max(0,Math.ceil((game.entryClosesAt-Date.now())/1000));
   text('timer',game.status==='open'?Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'):'Closed');
   const list=$('players');list.replaceChildren();
@@ -48,6 +60,35 @@ async function refresh(){
   button.textContent=!user?'Sign in with X':game.status==='open'?'Join this game':'Entries closed';
  }catch{ text('notice','Unable to reach game server') }
 }
+async function refreshJoinDetails(){
+ if(!user||!game)return;
+ const panel=$('joinDetailsPanel');
+ try{
+  const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/join-details');
+  if(!r.ok){panel.hidden=true;return}
+  panel.hidden=false;
+  const host=r.data.role==='host';
+  $('joinEditor').hidden=!host;
+  if(host&&document.activeElement!==$('joinInstructions'))$('joinInstructions').value=r.data.instructions||'';
+  $('joinInstructionsText').textContent=host
+    ? (r.data.instructions?'Saved. Selected players can view the instructions when the lobby is ready.':'Save instructions for selected players before they join.')
+    : (r.data.instructions||'The host has not posted joining instructions yet.');
+  text('joinDetailsStatus',host?'Host-only editing · encrypted on server':'Selected player access · verified through X sign-in');
+ }catch{panel.hidden=true}
+}
+$('joinEditor').addEventListener('submit',async e=>{
+ e.preventDefault();if(!user||!game)return;
+ const button=$('joinEditor').querySelector('button');
+ button.disabled=true;
+ try{
+  const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/join-details',{
+   method:'POST',headers:{'content-type':'application/json'},
+   body:JSON.stringify({instructions:$('joinInstructions').value})
+  });
+  text('joinDetailsStatus',r.ok?'Private instructions saved securely.':r.data.message||r.data.error||'Could not save details');
+ }catch{text('joinDetailsStatus','Server unavailable')}
+ button.disabled=false;
+});
 async function initialize(){
  try{const r=await json('/api/me');user=r.data.user}catch{}
  const b=$('join');b.disabled=false;
@@ -65,7 +106,7 @@ async function initialize(){
   }catch{ text('notice','Server not available') }
   await refresh();
  });
- await refresh();setInterval(refresh,5000);
+ await refresh();if(user)await refreshJoinDetails();setInterval(()=>{refresh().then(()=>{if(user)refreshJoinDetails()})},5000);
 }
 initialize();
 </script></body></html>

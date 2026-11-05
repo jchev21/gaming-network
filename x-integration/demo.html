@@ -60,7 +60,7 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 <div class="grid">
 <section class="panel">
 <h2>01 / Game setup</h2>
-<p class="caption">This is a safe local simulation. No posts, Discord commands, or promo codes are sent.</p>
+<p class="caption">Try the game-host setup locally. A verified X invitation will unlock creation of a persistent server-side signup lobby; no external match is automatically created.</p>
 <form id="create">
 <div class="two">
 <div><label for="game">Game type</label><select id="game" required><option>High Scores</option><option>Neon Targets</option><option>Fortnite</option><option>Call of Duty: Warzone</option><option>Apex Legends</option><option>Rocket League</option><option>Minecraft</option><option>Roblox</option><option>Valorant</option><option>Other Multiplayer Game</option><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
@@ -73,6 +73,17 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 </div>
 <label for="roundTime">Game duration</label>
 <select id="roundTime"><option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select>
+<fieldset id="hostFields" hidden style="border:1px solid #493a66;border-radius:12px;margin-top:18px;padding:14px">
+<legend style="font-weight:800;color:#bca7fb">Multiplayer host settings</legend>
+<div class="two">
+<div><label for="gameMode">Game mode</label><input id="gameMode" maxlength="50" placeholder="Duos, squads, creative..."></div>
+<div><label for="region">Region</label><select id="region">
+<option value="any">Any region</option><option value="na-east">NA East</option><option value="na-central">NA Central</option><option value="na-west">NA West</option><option value="europe">Europe</option><option value="asia">Asia</option><option value="oceania">Oceania</option><option value="south-america">South America</option><option value="middle-east">Middle East</option>
+</select></div></div>
+<label for="crossplay">Crossplay</label><select id="crossplay"><option value="any">Either</option><option value="on">Enabled</option><option value="off">Disabled</option></select>
+<div id="islandField" hidden><label for="islandCode">Public Fortnite island code (optional)</label><input id="islandCode" maxlength="14" placeholder="1234-5678-9012" pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"></div>
+<p class="caption">Never enter a private room password or custom-match key here. The verified host can share private join instructions after creating the lobby.</p>
+</fieldset>
 <label for="privateCode">Optional game / promo code (not stored)</label><input id="privateCode" type="password" autocomplete="off" placeholder="Leave blank for now" maxlength="120">
 <button class="primary" type="submit">Create demo lobby</button>
 </form>
@@ -100,6 +111,17 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 'use strict';
 const $=id=>document.getElementById(id);
 const HANDLE='jordan__chev';
+const hostedLabels=new Set(['Fortnite','Call of Duty: Warzone','Apex Legends','Rocket League','Minecraft','Roblox','Valorant','Other Multiplayer Game','Custom Game']);
+function syncHostFields(){
+ const title=$('game').value;
+ const hosted=hostedLabels.has(title);
+ $('hostFields').hidden=!hosted;
+ $('islandField').hidden=title!=='Fortnite';
+ if(title!=='Fortnite')$('islandCode').value='';
+}
+$('game').addEventListener('change',syncHostFields);
+syncHostFields();
+
 let lobby=null;
 let serial=0;
 function setText(id,t){$(id).textContent=t}
@@ -108,7 +130,7 @@ function remaining(){return lobby?Math.max(0,Math.ceil((lobby.closeAt-Date.now()
 function drawNow(){if(!lobby||lobby.done||lobby.rule!=='random')return;const pool=[...lobby.players];for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}const win=new Set(pool.slice(0,lobby.seats).map(p=>p.name.toLowerCase()));for(const p of lobby.players)p.selected=win.has(p.name.toLowerCase());lobby.done=true;lobby.closeAt=Date.now();setText('msg','Demo lottery complete. Winners were selected locally.');render()}
 function render(){if(!lobby)return;
  $('empty').style.display='none';$('lobby').classList.add('active');
- setText('lobbyGame',lobby.game+' · '+lobby.platform);setText('lobbyTitle',lobby.title);setText('lobbySummary',lobby.rule==='first'?'First eligible entrants are confirmed in arrival order.':'All unique entrants are pooled until the timer ends.');
+ setText('lobbyGame',lobby.game+' · '+lobby.platform);setText('lobbyTitle',lobby.title);setText('lobbySummary',(lobby.rule==='first'?'First eligible entrants are confirmed in arrival order.':'All unique entrants are pooled until the timer ends.')+(lobby.host?' · '+(lobby.host.mode||'Custom mode')+' · '+lobby.host.region+' · crossplay: '+lobby.host.crossplay:''));
  setText('lobbyCode',lobby.id);setText('entryTag',lobby.rule==='first'?'FIRST COME':'FIVE-MINUTE DRAW');
  const chosen=lobby.players.filter(p=>p.selected===true).length;setText('confirmed',chosen+' / '+lobby.seats);
  const secs=remaining();setText('timer',lobby.rule==='first'?(lobby.done?'Full':'Open'):lobby.done?'Closed':String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0'));
@@ -137,7 +159,7 @@ $('create').addEventListener('submit',async e=>{e.preventDefault();
  if(inviteValid){
    const mapping={'High Scores':'arcade-runner','Neon Targets':'arcade-targets','Fortnite':'fortnite','Call of Duty: Warzone':'warzone','Apex Legends':'apex-legends','Rocket League':'rocket-league','Minecraft':'minecraft','Roblox':'roblox','Valorant':'valorant','Other Multiplayer Game':'custom-multiplayer','Poker Now':'poker','Trivia':'trivia','Code Drop':'code-drop','Giveaway':'giveaway','Custom Game':'custom-multiplayer'};
    const platforms={'Discord':'discord','PC':'pc','PlayStation':'playstation','Xbox':'xbox','Mobile':'mobile','Web':'web'};
-   const payload={inviteToken:invite,game:mapping[$('game').value]||'arcade-runner',platform:platforms[$('platform').value]||'web',title:$('title').value.trim(),mode:$('rule').value==='random'?'lottery':'first',seats:Number($('seats').value),roundSeconds:Number($('roundTime').value)};
+   const payload={inviteToken:invite,game:mapping[$('game').value]||'arcade-runner',platform:platforms[$('platform').value]||'web',title:$('title').value.trim(),mode:$('rule').value==='random'?'lottery':'first',seats:Number($('seats').value),roundSeconds:Number($('roundTime').value),host:hostedLabels.has($('game').value)?{mode:$('gameMode').value.trim(),region:$('region').value,crossplay:$('crossplay').value,islandCode:$('islandCode').value.trim()}:undefined};
    $('privateCode').value='';
    const submit=$('create').querySelector('button[type="submit"]');submit.disabled=true;
    try{
@@ -149,7 +171,7 @@ $('create').addEventListener('submit',async e=>{e.preventDefault();
    return;
  }
  serial+=1;
- lobby={id:'DEMO-'+String(serial).padStart(3,'0'),game:$('game').value,platform:$('platform').value,title:$('title').value.trim(),seats:Number($('seats').value),rule:$('rule').value,players:[],closeAt:Date.now()+5*60*1000,done:false};
+ lobby={id:'DEMO-'+String(serial).padStart(3,'0'),game:$('game').value,platform:$('platform').value,title:$('title').value.trim(),seats:Number($('seats').value),rule:$('rule').value,host:hostedLabels.has($('game').value)?{mode:$('gameMode').value.trim(),region:$('region').value,crossplay:$('crossplay').value}:null,players:[],closeAt:Date.now()+5*60*1000,done:false};
  $('privateCode').value='';
  setText('msg','New demo lobby ready. No real game was created.');
  setText('replyText','Preview: Thanks for tagging @'+HANDLE+'! Set up your game using a verified invitation link from Gaming Network. (Not posted to X.)');

@@ -90,3 +90,7 @@ Run `node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs &
 
 ### Multi-title Host a Game options (signup only)
 The X game picker now offers Fortnite, Call of Duty: Warzone, Apex Legends, Rocket League, Minecraft, Roblox, Valorant and Other Multiplayer Game. These titles are supported as **Gaming Network signup lobby categories**, not as direct integrations with the games' matchmaking systems. The backend validates their enumerated IDs. The host still creates each external game session and privately shares its join details with eligible participants, subject to the game's rules. No Epic/Activision tokens, in-game lobby automation, or new score verification are enabled.
+
+
+### Multiplayer hosting batch — private instructions
+On the isolated `feature/x-host-workflow` branch, the X game picker lets a host choose mode, region, crossplay and a public Fortnite island identifier. The real server validates all public settings before accepting an X-authenticated invitation. Private game joining instructions are sent only through `POST /api/lobbies/:id/join-details` by the verified host and delivered via `GET /api/lobbies/:id/join-details` to that host or a selected player after the lobby is ready. Instructions are encrypted at rest with AES-256-GCM and the secret key from `X_JOIN_SECRET_KEY` or the existing high-entropy `X_ADMIN_TOKEN`. Public lobby responses never include private instructions or X user IDs. Actual Fortnite/Warzone game creation remains manual; this is only Gaming Network signup management.
