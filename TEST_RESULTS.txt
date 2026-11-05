@@ -1,0 +1,119 @@
+TEST RESULTS — AI #7 Launch Readiness
+Date: 2026-11-05
+Branch: ai/launch-readiness
+Environment: offline developer sandbox + intended GitHub Actions (ubuntu-latest, Python 3.12)
+
+========================================================================
+1) Unit tests (launch/tests)
+========================================================================
+Command:
+  python -m unittest discover -s launch/tests -v
+
+Result: PASSED (15 tests)
+
+  test_admin_role_flagged_high_risk ... ok
+  test_apply_refused_without_env ... ok
+  test_cli_json_exit_zero_on_clean ... ok
+  test_desired_loads ... ok
+  test_duplicate_current_names_conflict ... ok
+  test_empty_current_produces_creates ... ok
+  test_existing_ids_preserved_in_action ... ok
+  test_idempotent_with_matching_names ... ok
+  test_markdown_render ... ok
+  test_no_deletes_ever ... ok
+  test_load_from_temp ... ok
+  test_missing_file_empty ... ok
+  test_does_not_require_discord_token ... ok
+  test_has_passed_checks ... ok
+  test_runs_without_network ... ok
+
+Ran 15 tests in ~0.15s — OK
+
+========================================================================
+2) Compile
+========================================================================
+Command:
+  python -m compileall -q launch
+
+Result: PASSED (no output, exit 0)
+
+Note: discord-bot compile is covered by existing discord-dashboard-check.yml
+and by launch-readiness.yml in full CI checkout.
+
+========================================================================
+3) Guild planner dry-run
+========================================================================
+Command:
+  python launch/guild_planner.py --format json
+
+Result: exit 0
+  status: READY_FOR_MANUAL_SMOKE_TEST
+  summary (empty current state):
+    create_category: 6
+    create_channel: 35
+    create_role: 9
+  risks: Admin role Administrator permission flagged
+  notes: dry-run only; no deletes; idempotent design
+
+Apply refusal:
+  python launch/guild_planner.py --apply
+  → exit non-zero, message: APPLY DISABLED (expected)
+
+========================================================================
+4) Preflight
+========================================================================
+Command:
+  python launch/preflight.py
+
+Local sandbox (partial tree without discord-bot/ checked out into this
+working copy): reported BLOCKED for missing discord-bot/bot.py,
+requirements.txt, railway.json — expected in incomplete local mirror.
+
+Full repository checkout (CI / owner machine with complete tree):
+  Expected: PASSED checks for bot files, intents, DATA_DIR, loopback
+  dashboard binding, desired structure, env name documentation,
+  railway.json startCommand. Owner-action items listed for privileged
+  intents and volume mount. Status READY_FOR_MANUAL_SMOKE_TEST when
+  no hard failures.
+
+No network calls. No secrets printed.
+
+========================================================================
+5) GitHub Actions
+========================================================================
+Workflow added: .github/workflows/launch-readiness.yml
+  - compileall discord-bot + launch
+  - unittest discover launch/tests
+  - preflight.py
+  - guild_planner dry-run
+  - apply path must refuse
+  - asserts existing discord-dashboard-check.yml still present
+
+Existing workflow .github/workflows/discord-dashboard-check.yml: UNCHANGED
+
+Actions run will appear on push/PR to the branch. Record the Actions URL
+here after first green run:
+
+  (owner: paste Actions run URL after CI completes)
+
+========================================================================
+6) Not run (by design)
+========================================================================
+- Live Discord API calls
+- Guild channel/role create/update/delete
+- Railway deploy, restart, env mutation
+- Token validation against Discord
+- Public invite creation
+- X polling
+- Merge to production branches
+
+========================================================================
+7) Limitations
+========================================================================
+- Preflight bot-file checks require a full repo tree (present on GitHub).
+- Live interaction smoke tests (especially Add Event modal / 10062) remain
+  MANUAL — see launch/SMOKE_TESTS.md.
+- Planner current-state accuracy depends on an accurate exported snapshot;
+  without one, empty-state plan lists all desired creates.
+
+Overall package status: READY FOR MANUAL SMOKE TEST
