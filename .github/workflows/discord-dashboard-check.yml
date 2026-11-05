@@ -29,7 +29,7 @@ jobs:
       - name: Build production Discord bot container
         run: docker build -t gn-discord-hub-bot:ci discord-bot
       - name: Verify Discord Components V2 runtime in deployed image
-        run: docker run --rm --entrypoint python gn-discord-hub-bot:ci -c "import discord; from native_hub_feeds import public_lobby_lines; assert hasattr(discord.ui, 'LayoutView'); assert hasattr(discord.ui, 'MediaGallery'); assert hasattr(discord.ui, 'TextDisplay'); print('Discord Components V2 runtime ready:', discord.__version__)"
+        run: docker run --rm --entrypoint python gn-discord-hub-bot:ci -c "import discord; from native_hub_feeds import public_lobby_lines; assert hasattr(discord.ui, 'LayoutView'); assert hasattr(discord.ui, 'MediaGallery'); assert hasattr(discord.ui, 'TextDisplay'); import bot; v = bot.NativeChannelHubView('channel', 'Safe preview'); assert isinstance(v, discord.ui.LayoutView); assert v.is_persistent(); print('Native persistent in-channel Hub ready:', discord.__version__)"
       - name: Check dashboard async handlers
         run: |
           python - <<'PY'
