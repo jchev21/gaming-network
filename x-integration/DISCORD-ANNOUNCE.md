@@ -60,9 +60,9 @@ Future: SQLite outbox table on the storage branch; do not mix in this PR.
 
 ## Integration points
 
-`lobby-api.mjs` dispatches the announcement **only after the lobby JSON save completes** for join→ready or host cancellation. A failed save never emits a webhook. An ungraceful process crash between lobby save and outbox enqueue can still lose the event; fully atomic handling requires a transactional durable outbox.
+`lobby-api.mjs` dispatches the announcement **only after the lobby JSON save completes** for join→ready or host cancellation. A failed save never emits a webhook. A failed operation also reloads the last durable lobby snapshot so a later request cannot accidentally persist the rejected in-memory mutation. An ungraceful process crash between lobby save and outbox enqueue can still lose the event; fully atomic handling requires a transactional durable outbox.
 
-When the bridge is explicitly enabled, it starts a bounded retry drain (5-second polling interval by default) and attempts a drain of persisted pending events after restart. When disabled, no background timer is created. On shutdown, call the returned API's `close()` to clear the drain timer. Failures never break the HTTP API.
+When the bridge is explicitly enabled, it starts a bounded retry drain (5-second polling interval by default) and attempts a drain of persisted pending events after restart. The retry scheduler coalesces overlapping timer ticks if webhook delivery is slow, rather than building an unbounded backlog of timer-originated drains. When disabled, no background timer is created. On shutdown, call the returned API's `close()` to clear the drain timer. Failures never break the HTTP API.
 
 ## Manual setup checklist (later deploy review)
 
