@@ -247,7 +247,14 @@ const VALID_WEBHOOK =
       await new Promise(resolve => setTimeout(resolve, 25));
     }
     assert.equal(attempts, 2, 'retry timer should drain without an unrelated lobby event');
-    const stored = JSON.parse(await fs.readFile(bridge.outboxFile, 'utf8'));
+    // The mock transport can finish before the flush saves the sent marker.
+    // Wait for the durable outbox state, not just a transport invocation.
+    let stored;
+    for (let i = 0; i < 40; i++) {
+      stored = JSON.parse(await fs.readFile(bridge.outboxFile, 'utf8'));
+      if (stored.sent[announcementKey(lobby.id, 'ready')]) break;
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
     assert.ok(stored.sent[announcementKey(lobby.id, 'ready')]);
     console.log('✓ opt-in retry timer drains pending work after a transient failure');
   } finally {
