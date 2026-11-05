@@ -94,19 +94,31 @@ export function buildAnnouncementPayload(lobby, {
   return payload;
 }
 
+// Prevent untrusted lobby titles/handles from creating mentions, deceptive links,
+// Discord markdown formatting or disguised host identities in announcements.
+function publicText(value, max = 64) {
+  return String(value ?? '')
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(/(?:https?:\/\/|discord\.gg\/)\S+/gi, '[link omitted]')
+    .replace(/[@*`_<>{}\[\]~|]/g, '')
+    .trim().slice(0, max);
+}
+
 export function formatDiscordContent(payload) {
-  const hostLine = payload.host ? `Host: ${payload.host}` : 'Host: (signed-in X host)';
+  const hostLine = payload.host ? `Host: ${publicText(payload.host, 48)}` : 'Host: (signed-in X host)';
   const seats = `${payload.confirmedCount}/${payload.seats} seats`;
   const wait = payload.waitlistCount > 0 ? ` \u00b7 waitlist ${payload.waitlistCount}` : '';
   const lines = [
     payload.event === 'cancelled'
-      ? `**Lobby cancelled:** ${payload.title}`
-      : `**Lobby ready:** ${payload.title}`,
+      ? `**Lobby cancelled:** ${publicText(payload.title, 48)}`
+      : `**Lobby ready:** ${publicText(payload.title, 48)}`
     `${payload.game} \u00b7 ${payload.platform} \u00b7 ${payload.mode}`,
     `${hostLine} \u00b7 ${seats}${wait}`,
     payload.lobbyUrl,
   ];
-  return lines.join('\n');
+  const content = lines.join('\n');
+  if (content.length > 2000) throw new AnnounceConfigError('Discord content exceeds 2000 characters');
+  return content;
 }
 
 export function announcementKey(lobbyId, event = 'ready') {
@@ -160,6 +172,9 @@ export function createDiscordAnnounceBridge(opts = {}) {
   const transport = opts.transport || discordWebhookTransport;
   const now = opts.now || Date.now;
   const maxAttempts = opts.maxAttempts ?? 3;
+  // Keep the poll bounded. The timer only exists when the owner opts in.
+  const retryIntervalMs = Math.max(100, Math.min(60_000, opts.retryIntervalMs ?? 5_000));
+  let drainTimer = null;
 
   let queue = Promise.resolve();
   function serial(fn) {
@@ -284,10 +299,27 @@ export function createDiscordAnnounceBridge(opts = {}) {
     return result;
   }
 
+  function start() {
+    if (!cfg.enabled || drainTimer) return false;
+    drainTimer = setInterval(() => { flush().catch(() => {}); }, retryIntervalMs);
+    drainTimer.unref?.();
+    // Drain persisted pending work after restart; errors do not crash the API.
+    void flush().catch(() => {});
+    return true;
+  }
+
+  function stop() {
+    if (!drainTimer) return;
+    clearInterval(drainTimer);
+    drainTimer = null;
+  }
+
   return {
     config: cfg,
     enqueue,
     flush,
+    start,
+    stop,
     notifyLobbyReady,
     notifyLobbyCancelled,
     outboxFile,
