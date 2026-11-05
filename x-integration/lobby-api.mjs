@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry} from './game-core.mjs';
+import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry,joinWaitlist,replaceNoShow} from './game-core.mjs';
 import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
@@ -28,11 +28,11 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const actor=who(req);
     const result=await serial(()=>{
      const all=Object.values(db.lobbies).filter(g=>g.ownerXId===actor.id ||
-      g.entries.some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id));
+      g.entries.some(e=>e.xId===actor.id) || (g.waitlist||[]).some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id) || (g.removedXIds||[]).includes(actor.id));
      all.sort((a,b)=>b.createdAt-a.createdAt||b.id.localeCompare(a.id));
      return {games:all.slice(0,50).map(g=>{
       const game=publicLobby(g,now());
-      const role=g.ownerXId===actor.id?'host':(g.withdrawnXIds||[]).includes(actor.id)?'withdrawn':'player';
+      const role=g.ownerXId===actor.id?'host':(g.withdrawnXIds||[]).includes(actor.id)?'withdrawn':(g.removedXIds||[]).includes(actor.id)?'removed':(g.waitlist||[]).some(e=>e.xId===actor.id)?'waitlisted':'player';
       return {...game,viewerRole:role,viewerSelected:game.status==='ready'&&g.winners.includes(actor.id)};
      })};
     });send(res,200,result)
@@ -81,15 +81,24 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     });send(res,201,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
-  const manage=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/(me|cancel|withdraw)$/);
+  const manage=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/(me|cancel|withdraw|waitlist|replace)$/);
   if(manage && ((manage[2]==='me' && method==='GET') || (method==='POST' && manage[2]!=='me'))) {
    try {
     const actor=who(req);
     if(method==='POST') origin(req);
+    const body=manage[2]==='replace'&&method==='POST'?await readBody(req):null;
     const result=await serial(()=>{
      const game=db.lobbies[manage[1]];
      if(!game)throw err('NOT_FOUND','Game not found',404);
      publicLobby(game,now());
+     if(manage[2]==='waitlist') {
+      joinWaitlist(game,actor.id,'@'+actor.username,now());
+      return {game:publicLobby(game,now())};
+     }
+     if(manage[2]==='replace') {
+      replaceNoShow(game,actor.id,body?.seat,now());
+      return {game:publicLobby(game,now())};
+     }
      if(manage[2]==='cancel') {
       cancelLobby(game,actor.id,now());
       delete db.joinSecrets[game.id]; // revoke private instructions for former selected players
@@ -100,10 +109,16 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
       return {game:publicLobby(game,now())};
      }
      const joined=game.entries.some(p=>p.xId===actor.id);
+     const queuePosition=(game.waitlist||[]).findIndex(p=>p.xId===actor.id);
      const isHost=game.ownerXId===actor.id;
+     const withdrawn=(game.withdrawnXIds||[]).includes(actor.id);
+     const removed=(game.removedXIds||[]).includes(actor.id);
      return {isHost,joined,selected:game.status==='ready'&&game.winners.includes(actor.id),
+      waitlistPosition:queuePosition<0?null:queuePosition+1,withdrawn,removed,
       canCancel:isHost&&game.status!=='cancelled',
-      canWithdraw:joined&&game.status==='open'};
+      canReplace:isHost&&game.mode==='first'&&game.status==='ready',
+      canWaitlist:!isHost&&game.mode==='first'&&game.status==='ready'&&!joined&&queuePosition<0&&!withdrawn&&!removed&&(game.waitlist||[]).length<100,
+      canWithdraw:(joined&&game.status==='open')||queuePosition>=0};
     });
     send(res,200,result);
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
