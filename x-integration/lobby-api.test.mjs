@@ -93,8 +93,8 @@ try{
  const withdrawnGames=await req('/api/my-games','GET',undefined,{'x-test-user':'10002'});
  assert.equal(withdrawnGames.code,200);
  assert.equal(withdrawnGames.body.games.length,2);
- assert.equal(withdrawnGames.body.games[0].viewerRole,'withdrawn');
- assert.equal(withdrawnGames.body.games[1].status,'cancelled');
+ assert.equal(withdrawnGames.body.games.find(g=>g.id===gid2)?.viewerRole,'withdrawn');
+ assert.equal(withdrawnGames.body.games.find(g=>g.id===gameId)?.status,'cancelled');
  assert.ok(!JSON.stringify(persisted).includes('JOIN-TEST-KEY'));
  assert.ok(persisted.joinSecrets[gameId].iv);
  console.log('Lobby API tests passed');
