@@ -92,7 +92,17 @@ export function buildPublicFeed(lobbies, query, now = Date.now) {
   }
 
   const page = list.slice(0, query.limit);
-  const games = page.map((g) => publicLobby(g, now()));
+  // Public marketing/dashboard discovery is intentionally COUNT-ONLY.
+  // publicLobby() has optional public display names and host options for an
+  // individual lobby, but a globally discoverable index must not aggregate
+  // identifiable player lists, public handles or host configuration details.
+  const games = page.map((g) => {
+    const view = publicLobby(g, now());
+    const {id, title, game, platform, mode, seats, roundSeconds, status,
+      entryClosesAt, entryCount, confirmedCount, waitlistCount} = view;
+    return {id, title, game, platform, mode, seats, roundSeconds, status,
+      entryClosesAt, entryCount, confirmedCount, waitlistCount};
+  });
   const last = page[page.length - 1];
   const nextCursor = page.length === query.limit && last
     ? encodeCursor(last.createdAt, last.id)
