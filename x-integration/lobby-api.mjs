@@ -110,7 +110,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      db.invites[key]={postId:post.post_id,ownerXId:post.author_id,createdAt:now(),expiresAt:now()+86400000,usedAt:null};
      return{setupUrl:publicOrigin+'/setup?invite='+encodeURIComponent(raw),expiresAt:db.invites[key].expiresAt};
     });send(res,201,result);
-   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
    return true;
   }
   if(method==='POST'&&pathname==='/api/lobbies'){
@@ -125,7 +125,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      const g=createLobby(body,user.id,now());g.sourcePostId=invite.postId;db.lobbies[g.id]=g;invite.usedAt=now();
      return{game:publicLobby(g,now()),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
     });send(res,201,result)
-   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
   const manage=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/(me|cancel|withdraw|waitlist|replace)$/);
   if(manage && ((manage[2]==='me' && method==='GET') || (method==='POST' && manage[2]!=='me'))) {
@@ -198,14 +198,14 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   const match=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)(\/join)?$/);
   if(match&&method==='GET'&&!match[2]){
    try{const result=await serial(touch=>{const g=db.lobbies[match[1]];const prev=g?.status;const view=publicLobby(g,now());if(g.status!==prev)touch();return view},'on-touch');send(res,200,{game:result})}
-   catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+   catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
   if(match&&match[2]&&method==='POST'){
    try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
     joinLobby(g,user.id,'@'+user.username,now());return publicLobby(g,now());
    });send(res,200,{game:result})
-   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
   return false;
  }
