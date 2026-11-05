@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/x-host-workflow
+      - continuation/discord-announcement-safety
   pull_request:
     paths:
       - 'x-integration/**'
@@ -25,3 +26,5 @@ jobs:
           node-version: '24'
       - name: Test game core, private host instructions, X auth and lobby API
         run: npm test
+      - name: Build runtime Docker image (executes embedded test suite)
+        run: docker build -t gn-x-intake-ci:verify .
