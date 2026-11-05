@@ -55,11 +55,12 @@ async function readState(file) {
   try {
     const d = JSON.parse(await fs.readFile(file, 'utf8'));
     return { since_id: d.since_id || null, initialized: !!d.initialized,
+      target_user_id: d.target_user_id || null, target_handle: d.target_handle || null,
       pending: Array.isArray(d.pending) ? d.pending.slice(0, maxStateItems) : [],
       last_checked: d.last_checked || null, last_error: d.last_error || null };
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Invalid X state; starting empty', e.message);
-    return { since_id: null, initialized: false, pending: [], last_checked: null, last_error: null };
+    return { since_id: null, initialized: false, pending: [], last_checked: null, last_error: null, target_user_id: null, target_handle: null };
   }
 }
 async function persist(file, state) {
@@ -70,6 +71,10 @@ async function persist(file, state) {
 }
 async function pollX(s, state, file) {
   if (!s.bearer) throw new Error('X_API_BEARER_TOKEN required');
+  // Reuse the verified numeric account ID for the unchanged handle to avoid a paid lookup on each restart.
+  if (!s.userId && state.target_handle === s.handle && /^\d+$/.test(String(state.target_user_id || ''))) {
+    s.userId = state.target_user_id;
+  }
   if (!s.userId) {
     const lookup = await fetch('https://api.x.com/2/users/by/username/' +
       encodeURIComponent(s.handle.replace(/^@/, '')), {
@@ -84,6 +89,8 @@ async function pollX(s, state, file) {
     s.userId = String(profile.data.id);
   }
   if (!/^\d+$/.test(s.userId)) throw new Error('X_USER_ID must be numeric');
+  state.target_user_id = s.userId;
+  state.target_handle = s.handle;
   let nextToken;
   let posts = [];
   // Bounded pagination, read only. Does not call POST /2/tweets.
