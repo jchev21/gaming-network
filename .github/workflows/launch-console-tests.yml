@@ -1,0 +1,23 @@
+name: Offline Launch Acceptance Console Tests
+
+on:
+  pull_request:
+    paths:
+      - 'tools/launch-acceptance-console/**'
+      - '.github/workflows/launch-console-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Offline acceptance-console self-tests
+        run: node tools/launch-acceptance-console/test-console.mjs
