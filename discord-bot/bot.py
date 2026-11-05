@@ -9,6 +9,7 @@ Requires discord.py 2.4+ and aiohttp.  Set DISCORD_TOKEN in Terminal first.
 import os, json, asyncio, datetime, random
 from pathlib import Path
 import discord
+from native_hub_feeds import public_lobby_lines
 from dashboard_refresh import dashboard_fingerprint
 from discord import app_commands
 from discord.ext import commands
@@ -52,7 +53,7 @@ def load_data():
         d = json.loads(DATA_PATH.read_text())
     except Exception:
         d = {}
-    for k, v in {"users": {}, "feed": [], "codes": [], "affiliates": {}, "games": {}, "events": [], "poker": {}, "rewards": [], "redemptions": [], "dashboards": {}}.items():
+    for k, v in {"users": {}, "feed": [], "codes": [], "affiliates": {}, "games": {}, "events": [], "poker": {}, "rewards": [], "redemptions": [], "dashboards": {}, "native_hubs": {}}.items():
         d.setdefault(k, v)
     return d
 
@@ -95,6 +96,7 @@ def cname(interaction):
 async def setup_hook():
     asyncio.create_task(start_web())
     bot.add_view(DashboardView())
+    bot.add_view(NativeChannelHubView())
     for _gid, _g in data.get('poker', {}).items():
         if _g.get('status') == 'open':
             bot.add_view(JoinView(_gid))
@@ -1121,6 +1123,140 @@ async def post_dashboard(channel, panel="calendar"):
                                        "fingerprint": dashboard_fingerprint(panel, data)}
     save_data()
     return msg
+
+
+# ------------------------------------------------ native Discord Components V2 Hub
+# The original /dashboard image and buttons stay untouched. /hubview creates a
+# separate real Discord message with the selectable feed menu ABOVE the content.
+# Cross-channel private chat mirroring is never performed. The "This channel"
+# preview reads messages only from the same text channel the viewer already sees.
+NATIVE_HUB_FEEDS = {"channel", "x", "calendar", "board", "rewards"}
+
+
+async def native_hub_payload(channel, panel):
+    if panel in PANELS:
+        img = await asyncio.to_thread(panel_file, panel)
+        labels = {"calendar": "Community calendar", "board": "Member leaderboard", "rewards": "Rewards"}
+        return (f"**{labels[panel]}** · live bot records, last changed items; refresh manually.", img)
+    if panel == "x":
+        try:
+            from aiohttp import ClientSession, ClientTimeout
+            async with ClientSession(timeout=ClientTimeout(total=8)) as session:
+                async with session.get(
+                    "https://x-game-intake-production.up.railway.app/api/lobbies?limit=5",
+                    headers={"Accept": "application/json"},
+                ) as response:
+                    if response.status != 200:
+                        raise ValueError("Public feed unavailable")
+                    payload = await response.json(content_type=None)
+            return ("**Public X game lobbies** · source: sanitized public read-only API\n" + public_lobby_lines(payload), None)
+        except Exception:
+            return ("**Public X game lobbies** · UNAVAILABLE\nNo sample games substituted; retry with Refresh.", None)
+    if panel != "channel" or not isinstance(channel, discord.TextChannel):
+        return ("**This channel** · unavailable outside a guild text channel.", None)
+    try:
+        lines = []
+        async for message in channel.history(limit=8):
+            if message.author.bot or message.type != discord.MessageType.default:
+                continue
+            name = discord.utils.escape_mentions(discord.utils.escape_markdown(message.author.display_name[:32]))
+            snippet = discord.utils.escape_mentions(discord.utils.escape_markdown(message.clean_content[:220].replace("\n", " ")))
+            if not snippet:
+                snippet = "(no text)"
+            lines.append(f"• **{name}** · {message.created_at:%b %d %H:%M} UTC — {snippet}")
+            if len(lines) == 5:
+                break
+        body = "\n".join(lines) if lines else "No readable member messages found in this channel."
+        return ("**This channel only** · newest messages already visible here; Refresh for recent updates.\n" + body, None)
+    except (discord.Forbidden, discord.HTTPException):
+        return ("**This channel** · history unavailable to the bot. Check Read Message History permission.", None)
+
+
+class NativeChannelHubView(discord.ui.LayoutView):
+    """Simple native in-channel dashboard, independent of the embedded Activity."""
+
+    def __init__(self, panel="channel", body=None, image_filename=None):
+        super().__init__(timeout=None)
+        header = discord.ui.TextDisplay(
+            "## 📡 Gaming Network · Channel Hub\nSelect a source below. This message never mirrors other Discord channels."
+        )
+        container = discord.ui.Container(header, accent_colour=accent_color())
+        options = [
+            discord.SelectOption(label="This channel", value="channel", emoji="💬", default=panel == "channel"),
+            discord.SelectOption(label="Public X games", value="x", emoji="🎮", default=panel == "x"),
+            discord.SelectOption(label="Community calendar", value="calendar", emoji="📅", default=panel == "calendar"),
+            discord.SelectOption(label="Leaderboard", value="board", emoji="🏆", default=panel == "board"),
+            discord.SelectOption(label="Rewards", value="rewards", emoji="🎁", default=panel == "rewards"),
+        ]
+        select = discord.ui.Select(
+            placeholder="Select channel / live feed",
+            options=options,
+            custom_id="gn:channelhub:select",
+        )
+        select.callback = self._select_feed
+        container.add_item(discord.ui.ActionRow(select))
+        container.add_item(discord.ui.TextDisplay((body or "Choose a feed, then press Refresh for its current state.")[:2900]))
+        if image_filename:
+            container.add_item(discord.ui.MediaGallery(
+                discord.MediaGalleryItem(f"attachment://{image_filename}", description="Gaming Network bot dashboard image")
+            ))
+        button = discord.ui.Button(label="Refresh feed", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id="gn:channelhub:refresh")
+        button.callback = self._refresh
+        container.add_item(discord.ui.ActionRow(button))
+        container.add_item(discord.ui.TextDisplay(
+            "Read-only · public X data or this channel only. For the full multi-server Studio, use Gaming Network → Launch in Discord App Launcher."
+        ))
+        self.add_item(container)
+
+    async def _redraw(self, interaction, panel):
+        await interaction.response.defer()
+        body, image = await native_hub_payload(interaction.channel, panel)
+        view = NativeChannelHubView(panel, body, image.filename if image else None)
+        try:
+            await interaction.edit_original_response(
+                view=view, attachments=[image] if image else [],
+                allowed_mentions=discord.AllowedMentions.none()
+            )
+            data["native_hubs"][str(interaction.message.id)] = {
+                "channel_id": interaction.channel_id, "panel": panel
+            }
+            save_data()
+        except discord.HTTPException:
+            await interaction.followup.send("This feed could not be refreshed. Please try again.", ephemeral=True)
+
+    async def _select_feed(self, interaction):
+        values = (interaction.data or {}).get("values", [])
+        panel = values[0] if isinstance(values, list) and values else ""
+        if panel not in NATIVE_HUB_FEEDS:
+            return await interaction.response.send_message("Invalid feed selection.", ephemeral=True)
+        await self._redraw(interaction, panel)
+
+    async def _refresh(self, interaction):
+        rec = data.get("native_hubs", {}).get(str(interaction.message.id), {})
+        panel = rec.get("panel", "channel")
+        await self._redraw(interaction, panel if panel in NATIVE_HUB_FEEDS else "channel")
+
+
+@tree.command(name="hubview", description="Post a selectable live feed and channel dashboard INSIDE this Discord channel")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def hubview_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    if not isinstance(interaction.channel, discord.TextChannel):
+        return await interaction.followup.send("Use this command in a server text channel.", ephemeral=True)
+    body, image = await native_hub_payload(interaction.channel, "channel")
+    view = NativeChannelHubView("channel", body, image.filename if image else None)
+    try:
+        msg = await interaction.channel.send(
+            view=view, file=image, allowed_mentions=discord.AllowedMentions.none()
+        ) if image else await interaction.channel.send(
+            view=view, allowed_mentions=discord.AllowedMentions.none()
+        )
+    except discord.HTTPException:
+        return await interaction.followup.send("Unable to post here. Check Send Messages / Embed Links.", ephemeral=True)
+    data["native_hubs"][str(msg.id)] = {"channel_id": msg.channel.id, "panel": "channel"}
+    save_data()
+    await interaction.followup.send("Native channel Hub posted. Use the feed selector above its content.", ephemeral=True)
+
 
 @tree.command(name="dashboard", description="Post the live dashboard in this channel (refreshes itself)")
 @app_commands.checks.has_permissions(manage_guild=True)
