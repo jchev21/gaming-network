@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>Gaming Network | Request Moderation</title>
+<style>:root{color-scheme:dark;color:#f6f3ff;background:#0b0c15;font:15px/1.5 system-ui,-apple-system,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 30% 0%,#32274f,transparent 55%),#0b0c15}
+main{max-width:920px;padding:28px 22px;margin:auto}h1{font-size:clamp(28px,5vw,46px);margin:8px 0}p{color:#bbb7cd}
+.card{padding:20px;border:1px solid #393354;background:#191a2a;border-radius:16px;margin:16px 0}
+.tag{font-size:11px;font-weight:800;color:#bca8ff;letter-spacing:.1em}
+button{background:#baa0ff;border:0;color:#150e25;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer}
+button:disabled{opacity:.55}a{color:#d7bbff}input{width:100%;min-height:41px;border:1px solid #51476c;background:#101222;color:white;border-radius:8px;padding:10px;font:inherit}
+.item{border-top:1px solid #413950;padding:16px 0}#results{display:grid;gap:10px}
+#notice{min-height:24px;color:#ffdcaf}.meta{color:#aaa7c5;font-size:12px}footer{color:#999;max-width:920px;padding:12px 22px;margin:auto}
+</style></head><body><main><div class="tag">OWNER-ONLY CONTROLS</div><h1>Game request moderation</h1>
+<p>Review incoming mentions to <strong>@jordan__chev</strong>, then create a private, one-use game setup link. Nothing is posted to X automatically.</p>
+<div class="card"><h2>Sign-in</h2><p id="identity">Checking X sign-in…</p><div id="actions"></div><p id="notice" role="status"></p></div>
+<div class="card"><h2>Pending game requests</h2><p>Approving a request makes a link for the exact X account that posted it. Share the link privately or in a permitted reply.</p>
+<button id="refresh">Refresh requests</button><div id="results"></div></div>
+<div class="card"><h2>Latest approved link</h2><p>Only approved requests can use these links. They expire after 24 hours and only the original X author can create the lobby.</p>
+<input id="invite" readonly placeholder="No link generated yet" aria-label="Approved game link"><button id="copy" style="margin-top:12px">Copy setup link</button></div>
+<p><a href="/setup">Game preview</a> · <a href="/high-scores">High Scores Arcade</a></p>
+</main><footer>Read-only X mentions • X OAuth sign-in required • No automatic posting • Moderation is restricted to an explicitly configured numeric X user ID</footer>
+<script>
+const $=id=>document.getElementById(id);
+const note=m=>{$('notice').textContent=m};
+async function read(url,options){const r=await fetch(url,options);let data;try{data=await r.json()}catch{data={error:'Invalid server response'}}return{ok:r.ok,data}}
+function item(tag,text){const n=document.createElement(tag);n.textContent=text;return n}
+async function refresh(){
+ const response=await read('/api/moderation/mentions');
+ const root=$('results');root.replaceChildren();
+ if(!response.ok){root.append(item('p',response.data.error||'Moderator account authorization required'));return}
+ const requests=response.data.requests||[];
+ if(!requests.length){root.append(item('p','No qualifying mentions are queued.'));return}
+ for(const p of requests){
+   const wrap=document.createElement('div');wrap.className='item';
+   wrap.append(item('p',p.excerpt||'Game request'),item('div','Post '+p.post_id+' · '+(p.request_type||'game')+(p.game_created?' · Game created':'')));
+   const button=item('button',p.game_created?'Already created':'Approve and generate link');
+   button.disabled=Boolean(p.game_created);
+   button.addEventListener('click',async()=>{
+     button.disabled=true;note('Creating invitation…');
+     const r=await read('/api/moderation/approve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({post_id:p.post_id})});
+     if(!r.ok){note(r.data.message||r.data.error||'Approval failed');button.disabled=false;return}
+     $('invite').value=r.data.setupUrl;note('Private invitation created. It expires in 24 hours.');button.disabled=false;
+   });wrap.append(button);root.append(wrap);
+ }
+}
+async function start(){
+ const me=await read('/api/me'),health=await read('/health');
+ if(!health.data.oauth_ready){$('identity').textContent='X user authentication is not configured yet in Railway.';return}
+ if(!me.data.authenticated){
+  $('identity').textContent='Sign in using the authorized X moderator account.';
+  const a=item('a','Sign in with X');a.href='/auth/x/start?next=%2Fmoderate';$('actions').append(a);return;
+ }
+ $('identity').textContent='Signed in as @'+me.data.user.username+' · X ID '+me.data.user.id;
+ await refresh();
+}
+$('refresh').addEventListener('click',refresh);
+$('copy').addEventListener('click',async()=>{const v=$('invite').value;if(!v)return;try{await navigator.clipboard.writeText(v);note('Setup link copied.')}catch{note('Select the link to copy manually.')}});
+start().catch(()=>note('Unable to reach server'));
+</script></body></html>

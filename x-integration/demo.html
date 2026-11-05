@@ -63,7 +63,7 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 <p class="caption">This is a safe local simulation. No posts, Discord commands, or promo codes are sent.</p>
 <form id="create">
 <div class="two">
-<div><label for="game">Game type</label><select id="game" required><option>High Scores</option><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
+<div><label for="game">Game type</label><select id="game" required><option>High Scores</option><option>Neon Targets</option><option>Fortnite</option><option>Call of Duty: Warzone</option><option>Apex Legends</option><option>Rocket League</option><option>Minecraft</option><option>Roblox</option><option>Valorant</option><option>Other Multiplayer Game</option><option>Poker Now</option><option>Trivia</option><option>Code Drop</option><option>Giveaway</option><option>Custom Game</option></select></div>
 <div><label for="platform">Platform</label><select id="platform" required><option>Discord</option><option>PC</option><option>PlayStation</option><option>Xbox</option><option>Mobile</option><option>Web</option></select></div>
 </div>
 <label for="title">Game title</label><input id="title" placeholder="Friday night game" maxlength="75" required value="Community Game Night">
@@ -71,10 +71,12 @@ footer{padding-top:10px;padding-bottom:30px;color:#8e8bab;font-size:12px}
 <div><label for="rule">Entry rule</label><select id="rule"><option value="first">First five people</option><option value="random">Random after five minutes</option></select></div>
 <div><label for="seats">Player limit</label><select id="seats"><option value="5">5 players</option><option value="3">3 players</option><option value="8">8 players</option></select></div>
 </div>
+<label for="roundTime">Game duration</label>
+<select id="roundTime"><option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select>
 <label for="privateCode">Optional game / promo code (not stored)</label><input id="privateCode" type="password" autocomplete="off" placeholder="Leave blank for now" maxlength="120">
 <button class="primary" type="submit">Create demo lobby</button>
 </form>
-<p class="note">A real version will require verified X identity, server-side game creation, and protected delivery of eligible codes. Nothing typed here is uploaded.</p>
+<p class="note"><b>Hosting a Gaming Network signup lobby is different from creating a Fortnite or Warzone match.</b> A game host must create the actual in-game session and share joining instructions through an authorized private channel. X login is required for real signup lobbies; redeemable codes and in-game matchmaking are not automated. Demo-only codes are discarded.</p>
 </section>
 <section class="panel">
 <h2>02 / Live lobby preview</h2><p class="caption">Join with sample names, try first-come entry or a five-minute draw.</p>
@@ -113,7 +115,39 @@ function render(){if(!lobby)return;
  $('join').style.display=lobby.done?'none':'block';$('draw').style.display=lobby.rule==='random'&&!lobby.done?'block':'none';
  entrants()
 }
-$('create').addEventListener('submit',e=>{e.preventDefault();
+const invite=new URLSearchParams(location.search).get('invite');
+const inviteValid=Boolean(invite&&/^[A-Za-z0-9_-]{43}$/.test(invite));
+if(inviteValid){
+ const banner=document.createElement('div');banner.className='box';banner.style.borderColor='#86e3bd';
+ banner.textContent='Verified X invitation — only the X account that wrote the original mention can create this game. Sign-in required.';
+ $('create').prepend(banner);
+ const status=document.createElement('p');status.className='caption';$('create').prepend(status);
+ Promise.all([fetch('/api/me').then(r=>r.json()),fetch('/health').then(r=>r.json())]).then(([me,health])=>{
+   const submit=$('create').querySelector('button[type="submit"]');
+   if(me.authenticated){status.textContent='Signed in with X as @'+me.user.username;submit.textContent='Create verified game lobby';}
+   else if(!health.oauth_ready){status.textContent='Verified X sign-in is not configured yet. The demo below still works.';submit.disabled=true;}
+   else{status.textContent='Sign in with X to create your game.';submit.disabled=true;
+     const sign=document.createElement('a');sign.textContent='Sign in with X';sign.style.color='#d2adff';
+     sign.href='/auth/x/start?next='+encodeURIComponent('/setup?invite='+invite);
+     status.append(' ',sign);
+   }
+ }).catch(()=>{status.textContent='Sign-in status temporarily unavailable';$('create').querySelector('button[type="submit"]').disabled=true});
+}
+$('create').addEventListener('submit',async e=>{e.preventDefault();
+ if(inviteValid){
+   const mapping={'High Scores':'arcade-runner','Neon Targets':'arcade-targets','Fortnite':'fortnite','Call of Duty: Warzone':'warzone','Apex Legends':'apex-legends','Rocket League':'rocket-league','Minecraft':'minecraft','Roblox':'roblox','Valorant':'valorant','Other Multiplayer Game':'custom-multiplayer','Poker Now':'poker','Trivia':'trivia','Code Drop':'code-drop','Giveaway':'giveaway','Custom Game':'custom-multiplayer'};
+   const platforms={'Discord':'discord','PC':'pc','PlayStation':'playstation','Xbox':'xbox','Mobile':'mobile','Web':'web'};
+   const payload={inviteToken:invite,game:mapping[$('game').value]||'arcade-runner',platform:platforms[$('platform').value]||'web',title:$('title').value.trim(),mode:$('rule').value==='random'?'lottery':'first',seats:Number($('seats').value),roundSeconds:Number($('roundTime').value)};
+   $('privateCode').value='';
+   const submit=$('create').querySelector('button[type="submit"]');submit.disabled=true;
+   try{
+     const resp=await fetch('/api/lobbies',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+     const data=await resp.json();
+     if(!resp.ok){alert(data.message||data.error||'Could not create a game');submit.disabled=false;return}
+     location.assign(data.lobbyUrl);
+   }catch{alert('Game server temporarily unavailable');submit.disabled=false}
+   return;
+ }
  serial+=1;
  lobby={id:'DEMO-'+String(serial).padStart(3,'0'),game:$('game').value,platform:$('platform').value,title:$('title').value.trim(),seats:Number($('seats').value),rule:$('rule').value,players:[],closeAt:Date.now()+5*60*1000,done:false};
  $('privateCode').value='';

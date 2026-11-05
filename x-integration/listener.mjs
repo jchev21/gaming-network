@@ -2,6 +2,8 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createXAuth } from './x-auth.mjs';
+import { createLobbyApi } from './lobby-api.mjs';
 
 /**
  * Isolated Gaming Network X mention intake.
@@ -53,11 +55,12 @@ async function readState(file) {
   try {
     const d = JSON.parse(await fs.readFile(file, 'utf8'));
     return { since_id: d.since_id || null, initialized: !!d.initialized,
+      target_user_id: d.target_user_id || null, target_handle: d.target_handle || null,
       pending: Array.isArray(d.pending) ? d.pending.slice(0, maxStateItems) : [],
       last_checked: d.last_checked || null, last_error: d.last_error || null };
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Invalid X state; starting empty', e.message);
-    return { since_id: null, initialized: false, pending: [], last_checked: null, last_error: null };
+    return { since_id: null, initialized: false, pending: [], last_checked: null, last_error: null, target_user_id: null, target_handle: null };
   }
 }
 async function persist(file, state) {
@@ -68,6 +71,10 @@ async function persist(file, state) {
 }
 async function pollX(s, state, file) {
   if (!s.bearer) throw new Error('X_API_BEARER_TOKEN required');
+  // Reuse the verified numeric account ID for the unchanged handle to avoid a paid lookup on each restart.
+  if (!s.userId && state.target_handle === s.handle && /^\d+$/.test(String(state.target_user_id || ''))) {
+    s.userId = state.target_user_id;
+  }
   if (!s.userId) {
     const lookup = await fetch('https://api.x.com/2/users/by/username/' +
       encodeURIComponent(s.handle.replace(/^@/, '')), {
@@ -82,6 +89,8 @@ async function pollX(s, state, file) {
     s.userId = String(profile.data.id);
   }
   if (!/^\d+$/.test(s.userId)) throw new Error('X_USER_ID must be numeric');
+  state.target_user_id = s.userId;
+  state.target_handle = s.handle;
   let nextToken;
   let posts = [];
   // Bounded pagination, read only. Does not call POST /2/tweets.
@@ -132,6 +141,8 @@ export async function start(env = process.env) {
   const s = settings(env);
   const stateFile = path.join(s.dataDir, 'x-mentions-state.json');
   const state = await readState(stateFile);
+  const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
+  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:env.X_PUBLIC_ORIGIN||'https://x-game-intake-production.up.railway.app'});
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
@@ -149,11 +160,21 @@ export async function start(env = process.env) {
       res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
-        credentials_configured: !!s.bearer, last_checked: state.last_checked });
+        credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked });
+      return;
+    }
+    // OAuth and lobbies are independent of the X mention polling schedule.
+    try {
+      if (await auth.handle(req, res, url)) return;
+      if (await lobbyApi.handle(req, res, url)) return;
+    } catch (err) {
+      console.error('X auth/lobby handler failed:', err.code||err.message);
+      if (!res.headersSent) send(503, {error:'Service temporarily unavailable'});
+      else res.end();
       return;
     }
     // Static, local-browser previews only. The X API is not called here.
-    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html' };
+    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html' };
     if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(staticPages, url.pathname)) {
       try {
         const html = await fs.readFile(new URL('./' + staticPages[url.pathname], import.meta.url));
@@ -163,7 +184,7 @@ export async function start(env = process.env) {
           'x-robots-tag': 'noindex, nofollow',
           'referrer-policy': 'no-referrer',
           'x-content-type-options': 'nosniff',
-          'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          'content-security-policy': "default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         });
         res.end(html);
       } catch (err) {
