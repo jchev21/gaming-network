@@ -53,13 +53,16 @@ If any requirement is missing, the bridge stays **disabled** (fail closed).
 - Key: `ready:<lobbyId>` or `cancelled:<lobbyId>`.
 - Pending queue + `sent` map → process restart does not re-announce.
 - Bounded retries with backoff on 429/5xx; dead-letter after max attempts.
-- **Exactly-once enqueue** is guaranteed; end-to-end Discord delivery is at-least-once with dedupe key (Discord may still drop).
+- **Single-process best-effort enqueue deduplication** for pending/sent keys. Multiple replicas are **not supported** by this JSON outbox.
+- End-to-end Discord delivery is **at-least-once**, not exactly-once. A crash after webhook 2xx and before the sent marker persists may produce duplicate posts; other outages may cause drops.
 
 Future: SQLite outbox table on the storage branch; do not mix in this PR.
 
 ## Integration points
 
-`lobby-api.mjs` calls `maybeAnnounce` after join→ready and after host cancel. Failures never break the HTTP API.
+`lobby-api.mjs` dispatches the announcement **only after the lobby JSON save completes** for join→ready or host cancellation. A failed save never emits a webhook. An ungraceful process crash between lobby save and outbox enqueue can still lose the event; fully atomic handling requires a transactional durable outbox.
+
+When the bridge is explicitly enabled, it starts a bounded retry drain (5-second polling interval by default) and attempts a drain of persisted pending events after restart. When disabled, no background timer is created. On shutdown, call the returned API's `close()` to clear the drain timer. Failures never break the HTTP API.
 
 ## Manual setup checklist (later deploy review)
 
@@ -73,7 +76,8 @@ Future: SQLite outbox table on the storage branch; do not mix in this PR.
 
 ```bash
 cd x-integration
-node discord-announce.test.mjs
+npm test
+# Docker build and embedded tests are also run by the X Host Workflow CI.
 ```
 
-Uses **mock transport only** — never calls Discord.
+Uses **mock transport only** — never calls Discord. The commit-order regression test injects a failed lobby save and asserts zero announcements; the retry test uses a controlled clock and mock transport. Public title/handle text is stripped of mentions and user-supplied hyperlinks before formatting.
