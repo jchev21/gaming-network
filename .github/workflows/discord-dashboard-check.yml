@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/discord-dashboard-response
+      - launch/discord-dashboard-rate-limit-guard
   workflow_dispatch:
 
 permissions:
