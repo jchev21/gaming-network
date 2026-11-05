@@ -1080,7 +1080,8 @@ class DashboardView(discord.ui.View):
 
     async def _show(self, interaction, panel):
         await interaction.response.defer()
-        await interaction.edit_original_response(attachments=[panel_file(panel)], view=DashboardView())
+        image = await asyncio.to_thread(panel_file, panel)
+        await interaction.edit_original_response(attachments=[image], view=DashboardView())
         rec = data["dashboards"].get(str(interaction.message.id))
         if rec:
             rec["panel"] = panel
@@ -1100,16 +1101,20 @@ class DashboardView(discord.ui.View):
 
     @discord.ui.button(label="My standing", emoji="⭐", style=discord.ButtonStyle.secondary, custom_id="dash:me", row=0)
     async def b_me(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(file=discord.File(render_me(interaction.user), filename="me.png"), ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        image = await asyncio.to_thread(render_me, interaction.user)
+        await interaction.followup.send(file=discord.File(image, filename="me.png"), ephemeral=True)
 
     @discord.ui.button(label="Add event", emoji="➕", style=discord.ButtonStyle.secondary, custom_id="dash:add", row=0)
     async def b_add(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not (interaction.guild and interaction.user.guild_permissions.manage_messages):
             return await interaction.response.send_message("Only managers can add events.", ephemeral=True)
+        # Discord requires modals to be the first response (within ~3s); do not defer here.
         await interaction.response.send_modal(AddEventModal())
 
 async def post_dashboard(channel, panel="calendar"):
-    msg = await channel.send(file=panel_file(panel), view=DashboardView())
+    image = await asyncio.to_thread(panel_file, panel)
+    msg = await channel.send(file=image, view=DashboardView())
     data["dashboards"][str(msg.id)] = {"channel_id": channel.id, "panel": panel}
     save_data()
     return msg
@@ -1129,7 +1134,8 @@ async def refresh_all_dashboards():
         try:
             ch = bot.get_channel(rec["channel_id"]) or await bot.fetch_channel(rec["channel_id"])
             msg = await ch.fetch_message(int(mid))
-            await msg.edit(attachments=[panel_file(rec.get("panel", "calendar"))], view=DashboardView())
+            image = await asyncio.to_thread(panel_file, rec.get("panel", "calendar"))
+            await msg.edit(attachments=[image], view=DashboardView())
         except discord.NotFound:
             data["dashboards"].pop(mid, None)
             save_data()
