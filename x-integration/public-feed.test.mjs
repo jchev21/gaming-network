@@ -42,7 +42,10 @@ import { parseFeedQuery, buildPublicFeed } from './public-feed.mjs';
   assert.ok(!raw.includes('ownerXId'));
   assert.ok(!raw.includes('joinSecrets'));
   assert.ok(!raw.includes('invite'));
-  assert.ok(page.games[1].entries.every((e) => e.name && !('xId' in e)));
+  assert.ok(!('entries' in page.games[1]), 'public discovery should not list players');
+  assert.ok(!('waitlist' in page.games[1]), 'public discovery should not list waitlisted players');
+  assert.ok(!('host' in page.games[1]), 'public discovery should not expose host options');
+  assert.equal(page.games[1].entryCount, 2);
   const filtered = buildPublicFeed(lobbies, parseFeedQuery(new URLSearchParams('game=fortnite')), () => now + 5000);
   assert.equal(filtered.games.length, 1);
   assert.equal(filtered.games[0].game, 'fortnite');
@@ -146,6 +149,9 @@ try {
   }
   assert.ok(!/"xId"\s*:/.test(blob));
   assert.ok(!/"ownerXId"\s*:/.test(blob));
+  for (const sensitive of ['entries', 'waitlist', 'host', 'ownerXId', 'username', 'xId']) {
+    assert.ok(!Object.hasOwn(feed.body.games[0], sensitive), `public lobby list must omit ${sensitive}`);
+  }
 
   assert.equal((await req('/api/lobbies?game=fortnite')).body.games.length, 1);
   assert.equal((await req('/api/lobbies?game=warzone')).body.games.length, 0);
