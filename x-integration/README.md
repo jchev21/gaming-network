@@ -98,3 +98,7 @@ On the isolated `feature/x-host-workflow` branch, the X game picker lets a host 
 
 ### Cancellation and withdrawal UX (not deployed yet)
 The browser lobby now exposes X-authenticated host cancellation and entrant withdrawal controls, and uses server-side viewer state to avoid duplicate submissions. Cancelled lobbies show a warning and hide join details; updates to encrypted joining instructions are rejected after cancellation. Withdrawals are one-way before selection closes; public lobby data does not expose internal X IDs. Changes are isolated to `feature/x-host-workflow` beyond the pinned deployed release.
+
+
+### My Games — private signed-in dashboard (development branch)
+`GET /api/my-games` requires an X-authenticated session and returns only lobbies the current immutable X user owns, entered, or withdrew from; it caps output at 50 games and excludes private matchmaking instructions and user IDs. The `/my-games` page links to the user's games and uses `/auth/x/start?next=/my-games` for sign-in when configured. The page and API are on the isolated branch; there is no automatic X posting, scanning, or live provider integration.

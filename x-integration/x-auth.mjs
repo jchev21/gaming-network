@@ -12,7 +12,7 @@ const send=(res,status,obj,headers={})=>{res.writeHead(status,{'content-type':'a
 const setCookie=(key,val,age)=>key+'='+encodeURIComponent(val)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+age;
 const safeReturn=next=>{
  const s=String(next||'/setup');
- return /^\/(setup|high-scores|lobby)(?:\?|\/|$)/.test(s)&&!s.startsWith('//')&&!s.includes('\\')?s.slice(0,300):'/setup';
+ return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s)&&!s.startsWith('//')&&!s.includes('\\')?s.slice(0,300):'/setup';
 };
 export function createPKCE(){
  const verifier=rnd();

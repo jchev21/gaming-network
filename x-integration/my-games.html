@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Gaming Network | My Games</title>
+<style>
+:root{font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color-scheme:dark;color:#f8f4ff;background:#0c0d18}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 5% -20%,#362651,transparent 45%),#0c0d18}
+header,main,footer{max-width:1050px;margin:auto;padding:22px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{font-size:clamp(30px,5vw,46px);margin:8px 0 4px;letter-spacing:-.035em}
+h2{font-size:19px;margin:0}
+a{color:#d2b3ff}
+.brand{font-size:19px;font-weight:900;letter-spacing:.1em}.brand b{color:#b997ff}
+nav{display:flex;gap:17px}
+.muted{color:#b9b4cc}.eyebrow{font-size:12px;letter-spacing:.15em;color:#bca2ff;font-weight:800}
+.panel{background:#1a1a2e;border:1px solid #3c3559;border-radius:18px;padding:22px;margin-top:20px}
+button,.button{border:0;border-radius:10px;background:#b9a0ff;color:#12101d;padding:12px 18px;font:inherit;font-weight:750;cursor:pointer;display:inline-block;text-decoration:none}
+.secondary{background:#302b49;color:#ece3ff;border:1px solid #67598f}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:15px}
+#games{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;margin-top:20px}
+.game{padding:18px;background:#1a1a2e;border:1px solid #433a62;border-radius:15px}
+.game h2{line-height:1.25;margin:7px 0}
+.game p{margin:6px 0;color:#bab7cb;font-size:13px}
+.game .meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.pill{background:#352b52;color:#e3d5ff;font-size:11px;font-weight:800;padding:5px 8px;border-radius:7px}
+.game a{display:inline-block;margin-top:9px;font-weight:800}
+#status{min-height:20px}
+footer{color:#9590ab;font-size:12px}
+</style>
+</head>
+<body>
+<header><div class="brand">GAMING <b>NETWORK</b></div><nav><a href="/setup">Game Setup</a><a href="/high-scores">High Scores</a></nav></header>
+<main>
+<div class="eyebrow">X VERIFIED GAMING NETWORK</div><h1>My Games</h1>
+<p class="muted">View games you've hosted, joined, or withdrawn from. Private invitations and player account IDs are never shown here.</p>
+<div class="panel">
+<strong id="identity">Checking X sign-in…</strong><p id="status" role="status" class="muted"></p>
+<div class="controls">
+<button id="signIn" hidden>Sign in with X</button>
+<button id="refresh" class="secondary" hidden>Refresh games</button>
+<button id="signOut" class="secondary" hidden>Sign out</button>
+</div>
+</div>
+<div id="games" aria-live="polite"></div>
+</main>
+<footer>Gaming Network • No automatic X posting • External matches are hosted manually</footer>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let identity=null,loading=false;
+function format(value){return String(value||'').replaceAll('-',' ').replace(/\b\w/g,m=>m.toUpperCase())}
+async function json(url,options){const r=await fetch(url,options);return {ok:r.ok,status:r.status,data:await r.json()}}
+function showGame(g){
+ const item=document.createElement('article');item.className='game';
+ const role=document.createElement('div');role.className='eyebrow';role.textContent=g.viewerRole==='host'?'HOST':g.viewerRole==='withdrawn'?'WITHDRAWN':'PLAYER';item.append(role);
+ const h=document.createElement('h2');h.textContent=g.title;item.append(h);
+ const summary=document.createElement('p');summary.textContent=format(g.game)+' · '+format(g.platform);item.append(summary);
+ const meta=document.createElement('div');meta.className='meta';
+ for(const label of [format(g.status),g.mode==='lottery'?'Five-minute lottery':'First come',g.confirmedCount+' / '+g.seats+' confirmed',g.viewerSelected?'Selected player':null].filter(Boolean)){
+ const b=document.createElement('span');b.className='pill';b.textContent=label;meta.append(b);
+ }item.append(meta);
+ if(g.host){const p=document.createElement('p');p.textContent=[g.host.mode,g.host.region,g.host.islandCode?'Island '+g.host.islandCode:''].filter(Boolean).join(' · ');item.append(p)}
+ const link=document.createElement('a');link.href='/lobby?id='+encodeURIComponent(g.id);link.textContent='View game lobby';item.append(link);
+ return item;
+}
+async function refresh(){
+ if(loading||!identity)return;
+ loading=true;$('status').textContent='Loading your games…';
+ try{
+  const r=await json('/api/my-games');
+  if(!r.ok){$('status').textContent=r.status===401?'Session expired. Sign in again.':'Unable to load your games.';return}
+  $('games').replaceChildren(...r.data.games.map(showGame));
+  if(r.data.games.length===0)$('status').textContent='No games yet. Ask a host for a game link or create one from an approved X mention.';
+  else $('status').textContent='Showing '+r.data.games.length+' game'+(r.data.games.length===1?'':'s')+'.';
+ }catch{$('status').textContent='Game service temporarily unavailable.'}
+ finally{loading=false}
+}
+async function initialize(){
+ try{
+ const [me,health]=await Promise.all([json('/api/me'),json('/health')]);
+ identity=me.data.authenticated?me.data.user:null;
+ if(identity){
+ $('identity').textContent='Signed in as @'+identity.username;
+ $('refresh').hidden=false;$('signOut').hidden=false;
+ await refresh();
+ }else{
+ $('identity').textContent='Sign in with X to see your games.';
+ $('status').textContent=health.data.oauth_ready?'Your game history is private.':'X sign-in is not configured yet. Games are not publicly listed.';
+ $('signIn').hidden=!health.data.oauth_ready;
+ }
+ }catch{$('identity').textContent='Could not check sign-in status.';$('status').textContent='Try refreshing this page.'}
+}
+$('signIn').addEventListener('click',()=>{location.href='/auth/x/start?next='+encodeURIComponent('/my-games')});
+$('refresh').addEventListener('click',refresh);
+$('signOut').addEventListener('click',async()=>{await json('/auth/logout',{method:'POST'}).catch(()=>{});location.reload()});
+initialize();
+</script>
+</body></html>

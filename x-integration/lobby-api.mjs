@@ -22,6 +22,23 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  function isModerator(req){const u=auth.authenticated(req);return /^\d+$/.test(String(moderatorXId||'')) && u && u.id===String(moderatorXId)}
  async function handle(req,res,url){
   const method=req.method||'GET',pathname=url.pathname;
+  // Viewer-scoped list: never expose other players' account IDs or private instructions.
+  if(method==='GET'&&pathname==='/api/my-games'){
+   try{
+    const actor=who(req);
+    const result=await serial(()=>{
+     const all=Object.values(db.lobbies).filter(g=>g.ownerXId===actor.id ||
+      g.entries.some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id));
+     all.sort((a,b)=>b.createdAt-a.createdAt||b.id.localeCompare(a.id));
+     return {games:all.slice(0,50).map(g=>{
+      const game=publicLobby(g,now());
+      const role=g.ownerXId===actor.id?'host':(g.withdrawnXIds||[]).includes(actor.id)?'withdrawn':'player';
+      return {...game,viewerRole:role,viewerSelected:game.status==='ready'&&g.winners.includes(actor.id)};
+     })};
+    });send(res,200,result)
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
+   return true;
+  }
   if(method==='GET'&&pathname==='/api/moderation/mentions'){
    if(!isModerator(req)){send(res,403,{error:'Moderator X sign-in required'});return true}
    const requests=(mentions.pending||[]).slice(0,100).map(p=>({
