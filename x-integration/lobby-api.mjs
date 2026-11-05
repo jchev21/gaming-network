@@ -3,13 +3,14 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createLobby,joinLobby,publicLobby,LobbyError} from './game-core.mjs';
+import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
 const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
-async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{}}}}
+async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||adminToken}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
@@ -62,6 +63,30 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      return{game:publicLobby(g,now()),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
     });send(res,201,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+  }
+  // Only hosts can write; hosts and selected players may read after the selection.
+  const privateMatch=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/join-details$/);
+  if(privateMatch&&(method==='GET'||method==='POST')){
+   try{
+    const actor=who(req);
+    if(!joinSecretKey)throw err('NOT_CONFIGURED','Host joining instructions are unavailable',503);
+    let body=null;
+    if(method==='POST'){origin(req);body=await readBody(req)}
+    const result=await serial(()=>{
+     const g=db.lobbies[privateMatch[1]];
+     if(!g)throw err('NOT_FOUND','Game not found',404);
+     publicLobby(g,now());
+     const role=joinDetailsRole(g,actor.id);
+     if(!role)throw err('NOT_SELECTED','Joining details are only available to the host or selected players',403);
+     if(method==='POST'){
+      if(role!=='host')throw err('HOST_ONLY','Only the host may change instructions',403);
+      db.joinSecrets[g.id]=sealJoinInstructions(body.instructions,joinSecretKey);
+     }
+     return {role,ready:g.status==='ready',instructions:openJoinInstructions(db.joinSecrets[g.id],joinSecretKey)};
+    });
+    send(res,200,result);
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
+   return true;
   }
   const match=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)(\/join)?$/);
   if(match&&method==='GET'&&!match[2]){

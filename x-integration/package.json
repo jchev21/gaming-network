@@ -3,5 +3,5 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
-  "scripts": { "start": "node listener.mjs", "test": "node listener.test.mjs" }
+  "scripts": { "start": "node listener.mjs", "test": "node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node lobby-api.test.mjs && node host-utils.test.mjs" }
 }

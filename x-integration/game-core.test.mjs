@@ -36,4 +36,10 @@ assert.throws(()=>createLobby({...config,game:'fake'},'1',t),e=>e.code==='INVALI
 const exp=createLobby(config,'100',t,'expire');
 finalizeLobby(exp,t+300001);assert.equal(exp.status,'closed');
 assert.throws(()=>joinLobby(exp,'109','late',t+300001),e=>e.code==='CLOSED');
+const hosted=createLobby({...config,game:'fortnite',platform:'pc',host:{mode:'Duos',region:'na-east',crossplay:'on',islandCode:'1234-5678-9012'}},'100',t);
+assert.equal(publicLobby(hosted).host.islandCode,'1234-5678-9012');
+assert.equal(publicLobby(hosted).host.region,'na-east');
+assert.ok(!JSON.stringify(publicLobby(hosted)).includes('ownerXId'));
+assert.throws(()=>createLobby({...config,game:'warzone',host:{region:'invalid'}},'100',t),e=>e.code==='INVALID_REGION');
+assert.throws(()=>createLobby({...config,game:'warzone',host:{islandCode:'1234-5678-9012'}},'100',t),e=>e.code==='INVALID_ISLAND');
 console.log('Game core tests passed: first-come, five-minute lottery, identity, limits, privacy, finalization');

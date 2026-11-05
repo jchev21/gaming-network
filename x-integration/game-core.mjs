@@ -5,6 +5,7 @@
  * Prizes, redeemable codes and verified arcade scores are deliberately out of scope.
  */
 import { randomUUID, randomInt } from 'node:crypto';
+import {normalizeHostDetails} from './host-utils.mjs';
 
 export const ENTRY_MODES = Object.freeze(['first', 'lottery']);
 export const GAME_TYPES = Object.freeze(['arcade-runner', 'arcade-targets', 'poker', 'trivia', 'code-drop', 'giveaway', 'fortnite', 'warzone', 'apex-legends', 'rocket-league', 'minecraft', 'roblox', 'valorant', 'custom-multiplayer']);
@@ -29,7 +30,7 @@ function normalize(input = {}) {
   assert(Number.isSafeInteger(seats) && seats >= 2 && seats <= 8, 'INVALID_SEATS', 'Choose between 2 and 8 players');
   const title = maxName(input.title || 'Gaming Network Challenge');
   assert(title.length >= 3, 'INVALID_TITLE', 'Give the game a title');
-  return { game, platform, mode, seats, roundSeconds, title };
+  return { game, platform, mode, seats, roundSeconds, title, host: normalizeHostDetails(game, input.host) };
 }
 export function createLobby(input, ownerXId, now = Date.now(), id = randomUUID()) {
   assert(xId(ownerXId), 'AUTH_REQUIRED', 'X sign-in is required', 401);
@@ -86,6 +87,7 @@ export function publicLobby(lobby, now = Date.now()) {
   const selected = new Set(lobby.winners);
   return {
     id: lobby.id, title: lobby.title, game: lobby.game,
+    host: lobby.host || null, // validated public metadata only
     platform: lobby.platform, mode: lobby.mode, seats: lobby.seats,
     roundSeconds: lobby.roundSeconds,
     status: lobby.status, entryClosesAt: lobby.entryClosesAt,
