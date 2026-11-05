@@ -36,7 +36,6 @@ export function normalizeHostDetails(game, input) {
   if (islandCode && (game !== 'fortnite' || !/^\d{4}-\d{4}-\d{4}$/.test(islandCode))) {
     throw new HostDetailsError('INVALID_ISLAND', 'Use a public 12-digit Fortnite island code (0000-0000-0000)');
   }
-  // Public details never contain lobby passwords, custom-match keys or private URLs.
   return { mode, region, crossplay, islandCode };
 }
 
@@ -52,7 +51,7 @@ export function validateJoinInstructions(value) {
   return message;
 }
 
-function keyFromSecret(secret) {
+function keyFromSecretV1(secret) {
   if (typeof secret !== 'string' || secret.length < 6) {
     throw new Error('Secure host instruction encryption key is not configured');
   }
@@ -60,26 +59,52 @@ function keyFromSecret(secret) {
     .update('gaming-network-host-join-v1:').update(secret).digest();
 }
 
-/** AES-256-GCM: instructions are encrypted before writing the volume JSON. */
-export function sealJoinInstructions(plainText, secret) {
+function keyFromSecretV2(secret) {
+  if (typeof secret !== 'string' || secret.length < 32) {
+    throw new Error('X_JOIN_SECRET_KEY must be a dedicated secret of at least 32 characters');\n  }
+  return crypto.hkdfSync(
+    'sha256',
+    secret,
+    'gaming-network-host-join-v2',
+    '',
+    32
+  );
+}
+
+export function sealJoinInstructions(plainText, secret, opts = {}) {
   const message = validateJoinInstructions(plainText);
+  const version = opts.version === 1 ? 1 : 2;
+  const key = version === 1 ? keyFromSecretV1(secret) : keyFromSecretV2(secret);
   const nonce = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', keyFromSecret(secret), nonce);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, nonce);
   const payload = Buffer.concat([cipher.update(message, 'utf8'), cipher.final()]);
-  return { v: 1, iv: nonce.toString('base64url'), tag: cipher.getAuthTag().toString('base64url'), data: payload.toString('base64url') };
+  return {
+    v: version,
+    iv: nonce.toString('base64url'),
+    tag: cipher.getAuthTag().toString('base64url'),
+    data: payload.toString('base64url'),
+  };
 }
 
 export function openJoinInstructions(record, secret) {
   if (!record) return null;
-  if (record.v !== 1 || !record.iv || !record.tag || !record.data) {
+  if (!record.iv || !record.tag || !record.data) {
     throw new Error('Unsupported encrypted join instructions');
   }
-  const decipher = crypto.createDecipheriv('aes-256-gcm', keyFromSecret(secret), Buffer.from(record.iv, 'base64url'));
+  const version = record.v === 1 ? 1 : 2;
+  const key = version === 1 ? keyFromSecretV1(secret) : keyFromSecretV2(secret);
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    key,
+    Buffer.from(record.iv, 'base64url')
+  );
   decipher.setAuthTag(Buffer.from(record.tag, 'base64url'));
-  return Buffer.concat([decipher.update(Buffer.from(record.data, 'base64url')), decipher.final()]).toString('utf8');
+  return Buffer.concat([
+    decipher.update(Buffer.from(record.data, 'base64url')),
+    decipher.final(),
+  ]).toString('utf8');
 }
 
-/** Only owners, or selected players after the lobby is ready, can access secrets. */
 export function joinDetailsRole(lobby, authenticatedXId) {
   if (!lobby || !authenticatedXId) return null;
   const actor = String(authenticatedXId);
