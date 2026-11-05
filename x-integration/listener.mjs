@@ -43,6 +43,7 @@ function settings(env = process.env) {
     bearer: env.X_API_BEARER_TOKEN || '',
     admin: env.X_ADMIN_TOKEN || '',
     enabled: env.X_POLL_ENABLED === 'true',
+    once: env.X_POLL_ENABLED === 'once',
     pollSeconds: Number.isFinite(interval) ? Math.min(3600, Math.max(90, interval)) : 120,
     dataDir: env.DATA_DIR || './runtime',
     port: Number(env.PORT || 8080),
@@ -84,9 +85,9 @@ async function pollX(s, state, file) {
   let nextToken;
   let posts = [];
   // Bounded pagination, read only. Does not call POST /2/tweets.
-  for (let page = 0; page < 5; page++) {
+  for (let page = 0; page < (s.once ? 1 : 5); page++) {
     const url = new URL('https://api.x.com/2/users/' + s.userId + '/mentions');
-    url.searchParams.set('max_results', '100');
+    url.searchParams.set('max_results', s.once ? '5' : '100');
     url.searchParams.set('tweet.fields', 'author_id,created_at,entities');
     if (state.since_id) url.searchParams.set('since_id', state.since_id);
     if (nextToken) url.searchParams.set('pagination_token', nextToken);
@@ -102,7 +103,7 @@ async function pollX(s, state, file) {
     if (!nextToken) break;
   }
   // Fail closed if rate limit/volume exceeds our safe scan window.
-  if (nextToken) throw new Error('More than 500 mentions pending; manual pagination needed');
+  if (nextToken && state.initialized) throw new Error('Too many mentions for scan window; no cursor advanced');
   const newest = newestId(posts.map(p => p.id));
   if (!state.initialized) {
     // First request establishes a baseline: never reply to older mentions.
@@ -166,7 +167,11 @@ export async function start(env = process.env) {
   });
   server.listen(s.port, '0.0.0.0', () =>
     console.log('X intake ready on port ' + s.port + '; read-only, auto-poll=' + s.enabled));
-  if (s.enabled) {
+  if (s.once) {
+    console.log('X one-shot read-only test; at most one page of five mentions, no X posts');
+    const result = await doPoll();
+    console.log('X one-shot result:', JSON.stringify(result));
+  } else if (s.enabled) {
     console.log('X polling enabled (no automatic replies or game creation)');
     await doPoll();
     setInterval(doPoll, s.pollSeconds * 1000);
