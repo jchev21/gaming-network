@@ -11,7 +11,7 @@ a{color:#d1b7ff}.panel{border:1px solid #383155;background:#18192b;border-radius
 h1{font-size:clamp(26px,5vw,44px);line-height:1.1;margin:8px 0}h2{font-size:19px;margin:6px 0}
 small,p{color:#b9b5cd}button{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:750;cursor:pointer;background:#bb9bff;color:#15101e}
 button:disabled{opacity:.5;cursor:not-allowed}
-#withdraw,#cancel{background:#312b47;color:#e7d5ff;border:1px solid #6e5b8f;margin:5px}
+#withdraw,#cancel,#waitlistBtn{background:#312b47;color:#e7d5ff;border:1px solid #6e5b8f;margin:5px}
 #cancel{border-color:#a56677;color:#ffd2dc}
 textarea{width:100%;padding:12px;border:1px solid #5b4f78;border-radius:10px;color:#f5f3ff;background:#111321;font:inherit}
 .stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
@@ -23,9 +23,17 @@ ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1p
 </style></head><body>
 <header><div class="brand">GAMING <b>NETWORK</b></div><span><a href="/my-games">My Games</a> · <a href="/high-scores">High Scores Arcade</a></span></header>
 <main><div><span class="status">X-VERIFIED PLAYER LOBBY</span><h1 id="title">Loading game…</h1><p id="summary">Retrieving game status from the server.</p></div>
-<div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button> <button id="withdraw" hidden disabled>Withdraw entry</button> <button id="cancel" hidden disabled>Cancel game</button></div>
+<div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button> <button id="waitlistBtn" hidden disabled>Join waitlist</button> <button id="withdraw" hidden disabled>Withdraw entry</button> <button id="cancel" hidden disabled>Cancel game</button></div>
 <div class="panel"><h2>Players</h2><ul id="players"><li>Waiting for players…</li></ul>
-<p>Only verified X accounts may join once. First-come or random selection is performed by the server. This is not a prize or code redemption system.</p></div></main>
+<p>Only verified X accounts may join once. First-come or random selection is performed by the server. This is not a prize or code redemption system.</p></div>
+<div id="waitlistPanel" class="panel" hidden>
+<h2>Standby waitlist <span id="waitlistCount"></span></h2>
+<p>First-come games allow standby players after seats fill. Hosts can replace a no-show with the next waiting player.</p>
+<ul id="waitlistNames"></ul>
+</div>
+<div id="hostSeats" class="panel" hidden>
+<h2>Host: selected players</h2><p>Mark a no-show to offer the seat to the next waiting player. The replaced player loses private joining access.</p><ul id="selectedSeats"></ul>
+</div></main>
 <section id="joinDetailsPanel" class="panel" hidden>
 <h2>Private game joining instructions</h2>
 <p id="joinDetailsStatus">Only the game host and selected players can view this section. Details are not included in public lobby data.</p>
@@ -64,9 +72,27 @@ async function refresh(){
   if(!game.entries.length){const li=document.createElement('li');li.textContent='No entries yet';list.append(li)}
   for(const x of game.entries){const li=document.createElement('li');li.textContent=x.name+(x.selected===true?' · selected':x.selected===false?' · not selected':' · entered');list.append(li)}
   await refreshViewer();
+  const standby=$('waitlistNames');standby.replaceChildren();
+  $('waitlistPanel').hidden=game.mode!=='first'||game.status==='cancelled'||(game.status!=='ready'&&game.waitlistCount===0);
+  text('waitlistCount','('+Number(game.waitlistCount||0)+')');
+  for(const x of game.waitlist||[]){const item=document.createElement('li');item.textContent='#'+x.position+' · '+x.name;standby.append(item)}
+  if(!standby.children.length){const item=document.createElement('li');item.textContent='No standby players yet';standby.append(item)}
+  $('hostSeats').hidden=!viewer?.canReplace;
+  const chosen=$('selectedSeats');chosen.replaceChildren();
+  if(viewer?.canReplace){
+   for(const entrant of game.entries.filter(e=>Number.isInteger(e.seat))){
+    const item=document.createElement('li'),button=document.createElement('button');
+    item.append(document.createTextNode('Seat '+(entrant.seat+1)+' — '+entrant.name+' '));
+    button.textContent='Replace no-show';
+    button.addEventListener('click',()=>replaceSeat(entrant.seat,entrant.name));
+    item.append(button);chosen.append(item);
+   }
+  }
   const button=$('join'),cancelled=game.status==='cancelled';
   button.disabled=cancelled||game.status!=='open'||(!user&&!oauthReady)||Boolean(viewer?.joined);
   button.textContent=cancelled?'Game cancelled':!user?(oauthReady?'Sign in with X':'X sign-in unavailable'):viewer?.joined?'You are entered':game.status==='open'?'Join this game':'Entries closed';
+  $('waitlistBtn').hidden=!viewer?.canWaitlist;
+  $('waitlistBtn').disabled=!viewer?.canWaitlist;
   $('withdraw').hidden=!viewer?.canWithdraw;
   $('withdraw').disabled=!viewer?.canWithdraw;
   $('cancel').hidden=!viewer?.canCancel;
@@ -90,6 +116,14 @@ async function refreshJoinDetails(){
     : (r.data.instructions||'The host has not posted joining instructions yet.');
   text('joinDetailsStatus',host?'Host-only editing · encrypted on server':'Selected player access · verified through X sign-in');
  }catch{panel.hidden=true}
+}
+async function replaceSeat(seat,name){
+ if(!user||!viewer?.canReplace||!confirm('Replace '+name+' and revoke their joining access?'))return;
+ try{
+  const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/replace',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({seat})});
+  text('notice',r.ok?'Seat updated.':r.data.message||r.data.error||'Unable to replace');
+ }catch{text('notice','Server unavailable')}
+ await refresh();
 }
 $('joinEditor').addEventListener('submit',async e=>{
  e.preventDefault();if(!user||!game)return;
@@ -118,8 +152,17 @@ async function initialize(){
   await refresh();
  });
 
+ $('waitlistBtn').addEventListener('click',async()=>{
+  if(!user||!viewer?.canWaitlist)return;
+  $('waitlistBtn').disabled=true;
+  try{
+   const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/waitlist',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+   text('notice',r.ok?'You joined the standby waitlist.':r.data.message||r.data.error||'Unable to join waitlist');
+  }catch{text('notice','Server unavailable')}
+  await refresh();
+ });
  $('withdraw').addEventListener('click',async()=>{
-  if(!user||!viewer?.canWithdraw||!confirm('Withdraw your entry? You cannot re-enter this game.'))return;
+  if(!user||!viewer?.canWithdraw||!confirm('Withdraw from this game or waitlist? You cannot re-enter this game.'))return;
   $('withdraw').disabled=true;
   try{
    const r=await json('/api/lobbies/'+encodeURIComponent(id)+'/withdraw',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
