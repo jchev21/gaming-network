@@ -42,12 +42,7 @@ Invalid filters → **400** with `{ error, message }` (never 500).
       "entryClosesAt": 1700000300000,
       "entryCount": 2,
       "waitlistCount": 0,
-      "waitlist": [],
-      "confirmedCount": 2,
-      "host": { "mode": "Reload", "region": "na-east", "crossplay": "on", "islandCode": "" },
-      "entries": [
-        { "name": "@alice", "selected": null, "seat": null }
-      ]
+      "confirmedCount": 2
     }
   ],
   "count": 1,
@@ -68,13 +63,13 @@ Never returned:
 - Session cookies, admin tokens, OAuth state
 - Internal database paths
 
-Display names in `entries` / `waitlist` are the public names players chose when joining.
+The public **discovery index** intentionally excludes all player lists, public names, X identities, waitlist identities and host configuration. Only anonymous counts and game metadata appear. The individual `GET /api/lobbies/:id` endpoint has a separate viewer contract; keep private joining instructions behind authenticated authorization.
 
 ### Caching / CORS
 
 - `Cache-Control: public, max-age=5, stale-while-revalidate=15`
 - `Access-Control-Allow-Origin: *` (GET only; no credentials)
-- In-process rate limit (~60 req/min per client key)
+- An in-process aggregate safety ceiling of 6000 public feed requests/minute currently protects the origin. Railway's reverse proxy can make many real viewers share one socket IP; untrusted forwarded headers are deliberately ignored. For a larger rollout, configure trustworthy per-client edge rate limiting and caching before raising origin capacity.
 
 ### Related private routes (unchanged)
 
