@@ -1,0 +1,75 @@
+{
+  "lobbies": {
+    "lobby-sample-1": {
+      "id": "lobby-sample-1",
+      "ownerXId": "1001",
+      "title": "Friday Fortnite",
+      "game": "fortnite",
+      "platform": "pc",
+      "mode": "first",
+      "seats": 3,
+      "roundSeconds": 300,
+      "status": "ready",
+      "createdAt": 1700000000000,
+      "entryClosesAt": 1700000300000,
+      "finalizedAt": 1700000100000,
+      "sourcePostId": "post-abc",
+      "host": { "mode": "Reload", "region": "na-east", "crossplay": "on", "islandCode": "" },
+      "winners": ["1001", "2002", "3003"],
+      "withdrawnXIds": [],
+      "removedXIds": [],
+      "entries": [
+        { "xId": "1001", "name": "@host", "joinedAt": 1700000001000 },
+        { "xId": "2002", "name": "@alice", "joinedAt": 1700000002000 },
+        { "xId": "3003", "name": "@bob", "joinedAt": 1700000003000 }
+      ],
+      "waitlist": [
+        { "xId": "4004", "name": "@carol", "joinedAt": 1700000004000 }
+      ]
+    },
+    "lobby-sample-2": {
+      "id": "lobby-sample-2",
+      "ownerXId": "5005",
+      "title": "Warzone Drop",
+      "game": "warzone",
+      "platform": "pc",
+      "mode": "lottery",
+      "seats": 4,
+      "roundSeconds": 600,
+      "status": "open",
+      "createdAt": 1700001000000,
+      "entryClosesAt": 1700001600000,
+      "winners": [],
+      "withdrawnXIds": [],
+      "removedXIds": [],
+      "entries": [
+        { "xId": "5005", "name": "@wzhost", "joinedAt": 1700001001000 }
+      ],
+      "waitlist": []
+    }
+  },
+  "invites": {
+    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789": {
+      "postId": "post-abc",
+      "ownerXId": "1001",
+      "createdAt": 1699999900000,
+      "expiresAt": 1700086300000,
+      "usedAt": 1700000000000
+    },
+    "1111111111111111111111111111111111111111111111111111111111111111": {
+      "postId": "post-xyz",
+      "ownerXId": "5005",
+      "createdAt": 1700000900000,
+      "expiresAt": 1700087300000,
+      "usedAt": null
+    }
+  },
+  "joinSecrets": {
+    "lobby-sample-1": {
+      "v": 1,
+      "iv": "dGVzdGl2MTIzNDU2",
+      "tag": "dGVzdHRhZzEyMzQ1Njc=",
+      "data": "dGVzdGNpcGlwaGVydGV4dGhlcmUxMjM="
+    }
+  }
+}
