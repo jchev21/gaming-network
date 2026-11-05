@@ -1,0 +1,158 @@
+{
+  "$schema_comment": "Desired categories, channels, and roles for Gaming Network Discord Hub. Existing IDs always take precedence over names. This file is the source of truth for the dry-run planner only.",
+  "guild_name_hint": "Hub.XYZ waitlist",
+  "guild_id_hint": "1566290427366080612",
+  "categories": [
+    {
+      "name": "START HERE",
+      "channels": [
+        {"name": "welcome", "topic": "Welcome to the Gaming Network Hub. Start here.", "type": "text"},
+        {"name": "rules", "topic": "Server rules and community guidelines.", "type": "text"},
+        {"name": "announcements", "topic": "Official announcements only.", "type": "text"},
+        {"name": "how-to-start", "topic": "How to get started in the hub.", "type": "text"},
+        {"name": "roles-and-interests", "topic": "Self-assign roles and interests.", "type": "text"},
+        {"name": "support", "topic": "Member support and help requests.", "type": "text"}
+      ]
+    },
+    {
+      "name": "GAMING",
+      "channels": [
+        {"name": "games-and-events", "topic": "Upcoming games and community events.", "type": "text"},
+        {"name": "find-a-game", "topic": "Looking for players? Post here.", "type": "text"},
+        {"name": "live-lobbies", "topic": "Live lobby coordination.", "type": "text"},
+        {"name": "tournaments", "topic": "Tournament brackets and results.", "type": "text"},
+        {"name": "winners-and-highlights", "topic": "Celebrate wins and highlights.", "type": "text"},
+        {"name": "game-help", "topic": "Game-specific help and tips.", "type": "text"}
+      ]
+    },
+    {
+      "name": "LIVE DASHBOARD",
+      "channels": [
+        {"name": "dashboard", "topic": "Live hub dashboard posts.", "type": "text"},
+        {"name": "giveaways", "topic": "Official giveaways.", "type": "text"},
+        {"name": "promo-codes", "topic": "Partner promo codes (follow terms).", "type": "text"},
+        {"name": "alerts", "topic": "Important hub alerts.", "type": "text"},
+        {"name": "leaderboards", "topic": "Points and leaderboard updates.", "type": "text"},
+        {"name": "rewards-and-points", "topic": "Rewards and points info.", "type": "text"}
+      ]
+    },
+    {
+      "name": "EDUCATION",
+      "channels": [
+        {"name": "education-start", "topic": "Education track entry point.", "type": "text"},
+        {"name": "course-library", "topic": "Course and resource library.", "type": "text"},
+        {"name": "trading-basics", "topic": "Trading fundamentals.", "type": "text"},
+        {"name": "algo-lab", "topic": "Algorithm and strategy lab.", "type": "text"},
+        {"name": "trade-setups", "topic": "Trade setup discussion.", "type": "text"},
+        {"name": "trading-journal", "topic": "Personal trading journal tips.", "type": "text"},
+        {"name": "payout-reports", "topic": "Payout reporting discussion.", "type": "text"},
+        {"name": "scaling-vs-payouts", "topic": "Scaling strategies vs payouts.", "type": "text"},
+        {"name": "education-questions", "topic": "Ask education questions here.", "type": "text"}
+      ]
+    },
+    {
+      "name": "AFFILIATES",
+      "channels": [
+        {"name": "affiliate-help", "topic": "Affiliate program help.", "type": "text"},
+        {"name": "affiliate-news", "topic": "Affiliate news and updates.", "type": "text"},
+        {"name": "affiliate-links", "topic": "Approved affiliate links only.", "type": "text"},
+        {"name": "affiliate-reports", "topic": "Affiliate reporting (restricted).", "type": "text", "restricted": true}
+      ]
+    },
+    {
+      "name": "COMMUNITY",
+      "channels": [
+        {"name": "general", "topic": "General community chat.", "type": "text"},
+        {"name": "introductions", "topic": "Introduce yourself.", "type": "text"},
+        {"name": "suggestions", "topic": "Feature and server suggestions.", "type": "text"},
+        {"name": "bug-reports", "topic": "Report bugs and issues.", "type": "text"}
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "name": "Guest/New",
+      "color": "#95a5a6",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": ["view_channel", "read_message_history"],
+      "notes": "Default for new joins. Limited access until onboarding completes."
+    },
+    {
+      "name": "Member",
+      "color": "#3498db",
+      "hoist": false,
+      "mentionable": false,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "add_reactions", "use_application_commands", "attach_files", "embed_links"],
+      "notes": "Standard member after accepting rules / completing basic onboarding."
+    },
+    {
+      "name": "Gamer",
+      "color": "#9b59b6",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "add_reactions", "use_application_commands", "connect", "speak"],
+      "notes": "Interest role for gaming channels and events."
+    },
+    {
+      "name": "Trader/Learner",
+      "color": "#1abc9c",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "add_reactions", "use_application_commands"],
+      "notes": "Interest role for education and trading channels."
+    },
+    {
+      "name": "Affiliate",
+      "color": "#e67e22",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "add_reactions", "use_application_commands"],
+      "notes": "Affiliate program participants. Access to affiliate channels; restricted logs remain staff-only."
+    },
+    {
+      "name": "Instructor",
+      "color": "#f1c40f",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "manage_messages", "use_application_commands"],
+      "notes": "Education content creators / instructors."
+    },
+    {
+      "name": "Moderator",
+      "color": "#e74c3c",
+      "hoist": true,
+      "mentionable": true,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "manage_messages", "kick_members", "moderate_members", "manage_nicknames", "use_application_commands"],
+      "notes": "Day-to-day moderation. No Administrator, no Manage Guild, no Manage Roles by default."
+    },
+    {
+      "name": "Manager",
+      "color": "#c0392b",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": ["view_channel", "send_messages", "read_message_history", "manage_messages", "manage_channels", "kick_members", "moderate_members", "manage_nicknames", "use_application_commands"],
+      "notes": "Affiliate / program managers. Elevated but still least-privilege."
+    },
+    {
+      "name": "Admin",
+      "color": "#2c3e50",
+      "hoist": true,
+      "mentionable": false,
+      "permissions": ["administrator"],
+      "notes": "Full admin. Assign sparingly. Prefer explicit permissions where possible."
+    }
+  ],
+  "permission_principles": {
+    "least_privilege": true,
+    "no_silent_administrator": true,
+    "existing_ids_take_precedence": true,
+    "anti_raid": [
+      "Verification level at least Medium recommended",
+      "Slowmode on high-traffic public channels",
+      "Auto-moderation rules for spam/links where available",
+      "New members start as Guest/New with limited send access until role assignment"
+    ],
+    "restricted_channels": ["affiliate-reports"]
+  }
+}
