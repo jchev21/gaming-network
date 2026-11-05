@@ -72,13 +72,13 @@ export function encodeCursor(createdAt, id) {
 /**
  * Build a sanitized feed page from an in-memory lobby map.
  */
-export function buildPublicFeed(lobbies, query, now = Date.now) {
+export function buildPublicFeed(lobbies, query, now = Date.now, random) {
   let list = Object.values(lobbies || {});
 
   if (query.game) list = list.filter((g) => g.game === query.game);
   if (query.platform) list = list.filter((g) => g.platform === query.platform);
   if (query.status) list = list.filter((g) => {
-    publicLobby(g, now());
+    publicLobby(g, now(), random);
     return g.status === query.status;
   });
 
@@ -97,7 +97,7 @@ export function buildPublicFeed(lobbies, query, now = Date.now) {
   // individual lobby, but a globally discoverable index must not aggregate
   // identifiable player lists, public handles or host configuration details.
   const games = page.map((g) => {
-    const view = publicLobby(g, now());
+    const view = publicLobby(g, now(), random);
     const {id, title, game, platform, mode, seats, roundSeconds, status,
       entryClosesAt, entryCount, confirmedCount, waitlistCount} = view;
     return {id, title, game, platform, mode, seats, roundSeconds, status,

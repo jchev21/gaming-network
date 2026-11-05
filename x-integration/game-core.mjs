@@ -173,9 +173,9 @@ export function withdrawEntry(lobby, actorXId, now = Date.now()) {
   return lobby;
 }
 
-export function publicLobby(lobby, now = Date.now()) {
+export function publicLobby(lobby, now = Date.now(), random = randomInt) {
   if (!lobby) throw new LobbyError('NOT_FOUND', 'Game not found', 404);
-  finalizeLobby(lobby, now);
+  finalizeLobby(lobby, now, random);
   const selected = new Set(lobby.winners);
   return {
     id: lobby.id, title: lobby.title, game: lobby.game,

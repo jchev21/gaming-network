@@ -86,7 +86,9 @@ This next phase is prepared on branch `feature/x-verified-lobbies`. It adds `gam
 - Backups, moderation UI, privacy policy and rate/abuse controls need additional hardening before public launch.
 
 ### Tests
-Run `node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node lobby-api.test.mjs`. The Dockerfile runs all four test suites during build.
+Run `npm test` from `x-integration/`. This includes the offline HTTP flow in `two-account-flow.test.mjs`, and the Dockerfile runs the same suites during build.
+
+The two-account flow uses local fake OAuth endpoints, mock identities, temporary state, and a deterministic lottery source. It makes no live X or Discord requests. Passing it verifies application behavior against those fixtures only; it does not verify X credentials, real account ownership, live OAuth configuration, or human/Discord launch behavior. Those checks remain for the owner under launch issue #17.
 
 ### Multi-title Host a Game options (signup only)
 The X game picker now offers Fortnite, Call of Duty: Warzone, Apex Legends, Rocket League, Minecraft, Roblox, Valorant and Other Multiplayer Game. These titles are supported as **Gaming Network signup lobby categories**, not as direct integrations with the games' matchmaking systems. The backend validates their enumerated IDs. The host still creates each external game session and privately shares its join details with eligible participants, subject to the game's rules. No Epic/Activision tokens, in-game lobby automation, or new score verification are enabled.

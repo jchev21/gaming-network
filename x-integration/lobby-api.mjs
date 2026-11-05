@@ -13,7 +13,7 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,random,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json');
@@ -21,6 +21,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  let queue=Promise.resolve();
  const limiter=createRateLimiter({now});
  const guard=(key,limit=20)=>limiter.check(key,{limit,windowMs:60_000});
+ const publicView=game=>publicLobby(game,now(),random);
  async function serial(fn,write=true){
   const task=queue.then(async()=>{
    let touched=false;
@@ -58,10 +59,10 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const query=parseFeedQuery(url.searchParams);
     const result=await serial(touch=>{
      for(const game of Object.values(db.lobbies)){
-      const previous=game.status;publicLobby(game,now());
+      const previous=game.status;publicView(game);
       if(game.status!==previous)touch();
      }
-     return buildPublicFeed(db.lobbies,query,now);
+     return buildPublicFeed(db.lobbies,query,now,random);
     },'on-touch');
     sendPublic(res,200,result);
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
@@ -76,7 +77,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
       g.entries.some(e=>e.xId===actor.id) || (g.waitlist||[]).some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id) || (g.removedXIds||[]).includes(actor.id));
      all.sort((a,b)=>b.createdAt-a.createdAt||b.id.localeCompare(a.id));
      return {games:all.slice(0,50).map(g=>{
-      const oldStatus=g.status;const game=publicLobby(g,now());if(g.status!==oldStatus)touch();
+      const oldStatus=g.status;const game=publicView(g);if(g.status!==oldStatus)touch();
       const role=g.ownerXId===actor.id?'host':(g.withdrawnXIds||[]).includes(actor.id)?'withdrawn':(g.removedXIds||[]).includes(actor.id)?'removed':(g.waitlist||[]).some(e=>e.xId===actor.id)?'waitlisted':'player';
       return {...game,viewerRole:role,viewerSelected:game.status==='ready'&&g.winners.includes(actor.id)};
      })};
@@ -123,7 +124,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      const recent=Object.values(db.lobbies).filter(g=>g.ownerXId===user.id&&g.createdAt>=now()-86400000).length;
      if(recent>=10)throw err('RATE_LIMIT','Daily game limit reached',429);
      const g=createLobby(body,user.id,now());g.sourcePostId=invite.postId;db.lobbies[g.id]=g;invite.usedAt=now();
-     return{game:publicLobby(g,now()),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
+     return{game:publicView(g),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
     });send(res,201,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
@@ -136,23 +137,23 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const result=await serial(touch=>{
      const game=db.lobbies[manage[1]];
      if(!game)throw err('NOT_FOUND','Game not found',404);
-     const oldStatus=game.status;publicLobby(game,now());if(game.status!==oldStatus)touch();
+     const oldStatus=game.status;publicView(game);if(game.status!==oldStatus)touch();
      if(manage[2]==='waitlist') {
       joinWaitlist(game,actor.id,'@'+actor.username,now());
-      return {game:publicLobby(game,now())};
+      return {game:publicView(game)};
      }
      if(manage[2]==='replace') {
       replaceNoShow(game,actor.id,body?.seat,now());
-      return {game:publicLobby(game,now())};
+      return {game:publicView(game)};
      }
      if(manage[2]==='cancel') {
       cancelLobby(game,actor.id,now());
       delete db.joinSecrets[game.id]; // revoke private instructions for former selected players
-      return {game:publicLobby(game,now())};
+      return {game:publicView(game)};
      }
      if(manage[2]==='withdraw') {
       withdrawEntry(game,actor.id,now());
-      return {game:publicLobby(game,now())};
+      return {game:publicView(game)};
      }
      const joined=game.entries.some(p=>p.xId===actor.id);
      const queuePosition=(game.waitlist||[]).findIndex(p=>p.xId===actor.id);
@@ -181,7 +182,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     const result=await serial(touch=>{
      const g=db.lobbies[privateMatch[1]];
      if(!g)throw err('NOT_FOUND','Game not found',404);
-     const previous=g.status;publicLobby(g,now());if(g.status!==previous)touch();
+     const previous=g.status;publicView(g);if(g.status!==previous)touch();
      if(method==='POST'&&g.status==='cancelled')throw err('CANCELLED','Cannot edit a cancelled game',409);
      const role=joinDetailsRole(g,actor.id);
      if(!role)throw err('NOT_SELECTED','Joining details are only available to the host or selected players',403);
@@ -197,13 +198,13 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   }
   const match=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)(\/join)?$/);
   if(match&&method==='GET'&&!match[2]){
-   try{const result=await serial(touch=>{const g=db.lobbies[match[1]];const prev=g?.status;const view=publicLobby(g,now());if(g.status!==prev)touch();return view},'on-touch');send(res,200,{game:result})}
+   try{const result=await serial(touch=>{const g=db.lobbies[match[1]];const prev=g?.status;const view=publicView(g);if(g.status!==prev)touch();return view},'on-touch');send(res,200,{game:result})}
    catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
   if(match&&match[2]&&method==='POST'){
    try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
-    joinLobby(g,user.id,'@'+user.username,now());return publicLobby(g,now());
+    joinLobby(g,user.id,'@'+user.username,now());return publicView(g);
    });send(res,200,{game:result})
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }

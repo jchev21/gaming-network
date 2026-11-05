@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "node listener.mjs",
-    "test": "node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node x-auth-concurrency.test.mjs && node lobby-api.test.mjs && node host-utils.test.mjs && node rate-limit.test.mjs && node public-feed.test.mjs && node lobby-rollback.test.mjs && node launch-preflight.test.mjs",
+    "test": "node listener.test.mjs && node game-core.test.mjs && node x-auth.test.mjs && node x-auth-concurrency.test.mjs && node lobby-api.test.mjs && node host-utils.test.mjs && node rate-limit.test.mjs && node public-feed.test.mjs && node lobby-rollback.test.mjs && node two-account-flow.test.mjs && node launch-preflight.test.mjs",
     "preflight": "node launch-preflight.mjs"
   }
 }
