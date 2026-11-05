@@ -39,7 +39,7 @@ export function createLobby(input, ownerXId, now = Date.now(), id = randomUUID()
   return {
     id, ...opts, ownerXId: String(ownerXId), createdAt: now,
     entryClosesAt: now + 300_000, // Five-minute lottery window.
-    status: 'open', entries: [], winners: [], finalizedAt: null,
+    status: 'open', entries: [], winners: [], withdrawnXIds: [], finalizedAt: null,
   };
 }
 export function finalizeLobby(lobby, now = Date.now(), random = randomInt) {
@@ -72,6 +72,7 @@ export function joinLobby(lobby, actorXId, displayName, now = Date.now()) {
   assert(lobby.status === 'open', 'CLOSED', 'Entries are closed', 409);
   const id = String(actorXId);
   assert(!lobby.entries.some(e => e.xId === id), 'DUPLICATE', 'You already entered', 409);
+  assert(!(lobby.withdrawnXIds || []).includes(id), 'WITHDRAWN', 'You previously withdrew from this game', 409);
   if (lobby.mode === 'first') {
     assert(lobby.entries.length < lobby.seats, 'FULL', 'All seats are filled', 409);
   } else assert(lobby.entries.length < 200, 'CAPACITY', 'Entry pool is full', 409);
@@ -81,6 +82,34 @@ export function joinLobby(lobby, actorXId, displayName, now = Date.now()) {
   if (lobby.mode === 'first') finalizeLobby(lobby, now);
   return lobby;
 }
+/** Hosts can cancel before or after a drawing; it removes all winning permissions. */
+export function cancelLobby(lobby, actorXId, now = Date.now()) {
+  assert(xId(actorXId), 'AUTH_REQUIRED', 'X sign-in is required', 401);
+  assert(lobby && lobby.status, 'NOT_FOUND', 'Game not found', 404);
+  assert(lobby.ownerXId === String(actorXId), 'HOST_ONLY', 'Only the host can cancel this game', 403);
+  assert(lobby.status !== 'cancelled', 'CANCELLED', 'Game was already cancelled', 409);
+  lobby.status = 'cancelled';
+  lobby.winners = [];
+  lobby.finalizedAt = now;
+  lobby.cancelledAt = now;
+  return lobby;
+}
+
+/** A player can withdraw before the signup window closes, not after selection. */
+export function withdrawEntry(lobby, actorXId, now = Date.now()) {
+  assert(xId(actorXId), 'AUTH_REQUIRED', 'X sign-in is required', 401);
+  assert(lobby && lobby.status, 'NOT_FOUND', 'Game not found', 404);
+  finalizeLobby(lobby, now);
+  assert(lobby.status === 'open', 'CLOSED', 'The signup window has already closed', 409);
+  const id = String(actorXId);
+  const idx = lobby.entries.findIndex(e => e.xId === id);
+  assert(idx >= 0, 'NOT_ENTERED', 'You have not joined this lobby', 404);
+  lobby.entries.splice(idx, 1);
+  lobby.withdrawnXIds ||= [];
+  if (!lobby.withdrawnXIds.includes(id)) lobby.withdrawnXIds.push(id);
+  return lobby;
+}
+
 export function publicLobby(lobby, now = Date.now()) {
   if (!lobby) throw new LobbyError('NOT_FOUND', 'Game not found', 404);
   finalizeLobby(lobby, now);
@@ -92,7 +121,7 @@ export function publicLobby(lobby, now = Date.now()) {
     roundSeconds: lobby.roundSeconds,
     status: lobby.status, entryClosesAt: lobby.entryClosesAt,
     entryCount: lobby.entries.length,
-    confirmedCount: lobby.mode === 'lottery' ? selected.size : Math.min(lobby.entries.length, lobby.seats),
+    confirmedCount: lobby.status === 'cancelled' ? 0 : lobby.mode === 'lottery' ? selected.size : Math.min(lobby.entries.length, lobby.seats),
     // Never expose X IDs, internal keys, redeem codes, or random seeds.
     entries: lobby.entries.slice(0, 200).map(e => ({ name: e.name, selected: lobby.status === 'open' ? null : selected.has(e.xId) })),
   };

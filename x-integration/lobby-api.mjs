@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {createLobby,joinLobby,publicLobby,LobbyError} from './game-core.mjs';
+import {createLobby,joinLobby,publicLobby,LobbyError,cancelLobby,withdrawEntry} from './game-core.mjs';
 import {sealJoinInstructions,openJoinInstructions,joinDetailsRole} from './host-utils.mjs';
 const sha=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const send=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body))};
@@ -63,6 +63,34 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
      return{game:publicLobby(g,now()),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
     });send(res,201,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
+  }
+  const manage=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/(me|cancel|withdraw)$/);
+  if(manage && ((manage[2]==='me' && method==='GET') || (method==='POST' && manage[2]!=='me'))) {
+   try {
+    const actor=who(req);
+    if(method==='POST') origin(req);
+    const result=await serial(()=>{
+     const game=db.lobbies[manage[1]];
+     if(!game)throw err('NOT_FOUND','Game not found',404);
+     publicLobby(game,now());
+     if(manage[2]==='cancel') {
+      cancelLobby(game,actor.id,now());
+      delete db.joinSecrets[game.id]; // revoke private instructions for former selected players
+      return {game:publicLobby(game,now())};
+     }
+     if(manage[2]==='withdraw') {
+      withdrawEntry(game,actor.id,now());
+      return {game:publicLobby(game,now())};
+     }
+     const joined=game.entries.some(p=>p.xId===actor.id);
+     const isHost=game.ownerXId===actor.id;
+     return {isHost,joined,selected:game.status==='ready'&&game.winners.includes(actor.id),
+      canCancel:isHost&&game.status!=='cancelled',
+      canWithdraw:joined&&game.status==='open'};
+    });
+    send(res,200,result);
+   }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
+   return true;
   }
   // Only hosts can write; hosts and selected players may read after the selection.
   const privateMatch=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)\/join-details$/);
