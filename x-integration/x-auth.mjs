@@ -51,7 +51,8 @@ export async function createXAuth({clientId=process.env.X_CLIENT_ID||'',clientSe
   }
   if(req.method==='GET'&&url.pathname==='/auth/x/start'){
    if(!enabled){send(res,503,{error:'X sign-in not configured'});return true;}
-   cleanup();const {verifier,challenge}=createPKCE(),state=rnd();
+   cleanup();if(Object.keys(db.flows).length>=2000){send(res,429,{error:'Too many sign-in attempts; retry shortly'},{'retry-after':'60'});return true;}
+   const {verifier,challenge}=createPKCE(),state=rnd();
    db.flows[sha(state)]={verifier,expires:now()+600000,next:safeReturn(url.searchParams.get('next'))};
    await persist(file,db);
    res.writeHead(302,{location:authorizeUrl({clientId,redirectUri,state,challenge,base:authorizationBase}),'cache-control':'no-store','set-cookie':setCookie('gn_x_oauth_state',state,600)});res.end();

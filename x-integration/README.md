@@ -106,3 +106,7 @@ The browser lobby now exposes X-authenticated host cancellation and entrant with
 
 ### FIFO waitlist and host no-show replacement (unreleased)
 Full first-come lobbies can accept up to 100 additional authenticated players on a public-name-only waitlist. The server maintains immutable X account IDs privately, blocks duplicate/withdrawn/removed entries, and lets the host replace a selected no-show with the earliest standby player. If no standby player exists, the seat reopens for five minutes. Standby players may withdraw without losing any seats. Random-draw lobbies are intentionally excluded until a properly randomized standby order is implemented. This feature is not connected to external game matchmaking or X posting. It is only in `feature/x-host-workflow`; Railway's pinned release remains unchanged.
+
+
+### Imported security hardening (isolated host branch)
+Reviewed and manually ported from Claude draft PR #8: bounded OAuth pending flows (maximum 2,000; HTTP 429), constant-time hashed admin authorization, and mutation-aware persistence for public lobby and private join-details reads. These changes do not enable X polling, replies, or any production deployment. The JSON store is still single-replica; Grok is drafting a transactional storage migration in issue #10. Dedicated instruction-key rotation remains a separate planned security change.

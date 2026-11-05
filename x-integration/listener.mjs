@@ -1,4 +1,5 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +33,12 @@ export function classifyMention(post, handle, ownUserId) {
     request_type: /poker/i.test(body) ? 'poker' : /giveaway/i.test(body) ? 'giveaway' : /code[ -]?drop/i.test(body) ? 'code-drop' : 'game',
     excerpt: body.slice(0, 240),
   };
+}
+export function adminOk(given, token) {
+  if (!token || typeof given !== 'string') return false;
+  const provided=crypto.createHash('sha256').update(given).digest();
+  const expected=crypto.createHash('sha256').update('Bearer '+token).digest();
+  return crypto.timingSafeEqual(provided,expected);
 }
 export function newestId(ids) {
   return ids.map(String).filter(x => /^\d+$/.test(x)).reduce(
@@ -194,7 +201,7 @@ export async function start(env = process.env) {
       return;
     }
     if (!url.pathname.startsWith('/admin/')) { send(404, { error: 'Not found' }); return; }
-    if (!s.admin || req.headers.authorization !== 'Bearer ' + s.admin) {
+    if (!adminOk(req.headers.authorization, s.admin)) {
       send(401, { error: 'Unauthorized' }); return;
     }
     if (req.method === 'GET' && url.pathname === '/admin/mentions') {

@@ -15,7 +15,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json'),db=await load(file);
  let queue=Promise.resolve();
- async function serial(fn,write=true){const task=queue.then(async()=>{const result=await fn();if(write)await save(file,db);return result});queue=task.catch(()=>{});return task}
+ async function serial(fn,write=true){const task=queue.then(async()=>{let touched=false;const result=await fn(()=>{touched=true});if(write===true||(write==='on-touch'&&touched))await save(file,db);return result});queue=task.catch(()=>{});return task}
  function admin(req){const given=req.headers.authorization||'';if(!adminToken||!given.startsWith('Bearer '))return false;const a=Buffer.from(given.slice(7)),b=Buffer.from(adminToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
  function origin(req){if(req.headers.origin!==publicOrigin)throw err('FORBIDDEN_ORIGIN','Same-origin request required',403)}
  function who(req){const user=auth.authenticated(req);if(!user)throw err('AUTH_REQUIRED','Sign in with X first',401);return user}
@@ -132,26 +132,26 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
     if(!joinSecretKey)throw err('NOT_CONFIGURED','Host joining instructions are unavailable',503);
     let body=null;
     if(method==='POST'){origin(req);body=await readBody(req)}
-    const result=await serial(()=>{
+    const result=await serial(touch=>{
      const g=db.lobbies[privateMatch[1]];
      if(!g)throw err('NOT_FOUND','Game not found',404);
-     publicLobby(g,now());
+     const previous=g.status;publicLobby(g,now());if(g.status!==previous)touch();
      if(method==='POST'&&g.status==='cancelled')throw err('CANCELLED','Cannot edit a cancelled game',409);
      const role=joinDetailsRole(g,actor.id);
      if(!role)throw err('NOT_SELECTED','Joining details are only available to the host or selected players',403);
      if(method==='POST'){
       if(role!=='host')throw err('HOST_ONLY','Only the host may change instructions',403);
-      db.joinSecrets[g.id]=sealJoinInstructions(body.instructions,joinSecretKey);
+      db.joinSecrets[g.id]=sealJoinInstructions(body.instructions,joinSecretKey);touch();
      }
      return {role,ready:g.status==='ready',instructions:openJoinInstructions(db.joinSecrets[g.id],joinSecretKey)};
-    });
+    },'on-touch');
     send(res,200,result);
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}
    return true;
   }
   const match=pathname.match(/^\/api\/lobbies\/([a-zA-Z0-9-]+)(\/join)?$/);
   if(match&&method==='GET'&&!match[2]){
-   try{const result=await serial(()=>publicLobby(db.lobbies[match[1]],now()));send(res,200,{game:result})}
+   try{const result=await serial(touch=>{const g=db.lobbies[match[1]];const prev=g?.status;const view=publicLobby(g,now());if(g.status!==prev)touch();return view},'on-touch');send(res,200,{game:result})}
    catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.message})}return true;
   }
   if(match&&match[2]&&method==='POST'){

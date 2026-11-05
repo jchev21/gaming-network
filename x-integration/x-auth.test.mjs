@@ -29,5 +29,8 @@ try{
  await fetch(base+'/auth/logout',{method:'POST',headers:{cookie:'gn_x_session='+sid}});
  const gone=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});
  assert.equal((await gone.json()).authenticated,false);
+ let blocked=0;
+ for(let i=0;i<2003;i++){const r=await fetch(base+'/auth/x/start',{redirect:'manual'});if(r.status===429)blocked++}
+ assert.ok(blocked>=1,'OAuth flow table must be capped');
  console.log('X OAuth tests passed');
 }finally{server.close();await fs.rm(dir,{recursive:true,force:true})}
