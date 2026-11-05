@@ -154,8 +154,18 @@ export async function discordWebhookTransport(webhookUrl, body, { fetchImpl = fe
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
+    // Discord webhook credentials are part of the URL: NEVER follow a
+    // redirect or resend the announcement payload to an unapproved host.
+    redirect: 'error',
     signal: AbortSignal.timeout(timeoutMs),
   });
+  // Defense in depth for injected fetch implementations or unexpected HTTP
+  // adapters which may ignore redirect: 'error'.
+  if (res.redirected || (typeof res.url === 'string' && res.url && res.url !== webhookUrl)) {
+    const error = new AnnounceConfigError('Discord webhook redirect refused');
+    error.retryable = false;
+    throw error;
+  }
   if (!res.ok) {
     const err = new Error(`Discord webhook HTTP ${res.status}`);
     err.status = res.status;
