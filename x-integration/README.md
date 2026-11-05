@@ -102,3 +102,7 @@ The browser lobby now exposes X-authenticated host cancellation and entrant with
 
 ### My Games — private signed-in dashboard (development branch)
 `GET /api/my-games` requires an X-authenticated session and returns only lobbies the current immutable X user owns, entered, or withdrew from; it caps output at 50 games and excludes private matchmaking instructions and user IDs. The `/my-games` page links to the user's games and uses `/auth/x/start?next=/my-games` for sign-in when configured. The page and API are on the isolated branch; there is no automatic X posting, scanning, or live provider integration.
+
+
+### FIFO waitlist and host no-show replacement (unreleased)
+Full first-come lobbies can accept up to 100 additional authenticated players on a public-name-only waitlist. The server maintains immutable X account IDs privately, blocks duplicate/withdrawn/removed entries, and lets the host replace a selected no-show with the earliest standby player. If no standby player exists, the seat reopens for five minutes. Standby players may withdraw without losing any seats. Random-draw lobbies are intentionally excluded until a properly randomized standby order is implemented. This feature is not connected to external game matchmaking or X posting. It is only in `feature/x-host-workflow`; Railway's pinned release remains unchanged.
