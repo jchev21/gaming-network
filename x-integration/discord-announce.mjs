@@ -299,12 +299,22 @@ export function createDiscordAnnounceBridge(opts = {}) {
     return result;
   }
 
+  let scheduledDrain = null;
+  function drainScheduled() {
+    // Do not queue unbounded flush jobs when a webhook is slow or timing out.
+    if (scheduledDrain) return scheduledDrain;
+    scheduledDrain = flush()
+      .catch(() => {})
+      .finally(() => { scheduledDrain = null; });
+    return scheduledDrain;
+  }
+
   function start() {
     if (!cfg.enabled || drainTimer) return false;
-    drainTimer = setInterval(() => { flush().catch(() => {}); }, retryIntervalMs);
+    drainTimer = setInterval(() => { void drainScheduled(); }, retryIntervalMs);
     drainTimer.unref?.();
     // Drain persisted pending work after restart; errors do not crash the API.
-    void flush().catch(() => {});
+    void drainScheduled();
     return true;
   }
 
