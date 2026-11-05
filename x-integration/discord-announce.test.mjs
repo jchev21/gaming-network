@@ -12,12 +12,60 @@ import {
   formatDiscordContent,
   announcementKey,
   createDiscordAnnounceBridge,
+  discordWebhookTransport,
+  AnnounceConfigError,
   DISCORD_WEBHOOK_RE,
 } from './discord-announce.mjs';
 import { createLobby, joinLobby } from './game-core.mjs';
 
 const VALID_WEBHOOK =
   'https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyzABCDEF';
+
+{
+  // A successful response from a redirected destination must never count as
+  // an accepted Discord webhook delivery. This test makes NO network calls.
+  let requests = 0;
+  const accepted = await discordWebhookTransport(VALID_WEBHOOK,
+    { content: 'public lobby', allowed_mentions: { parse: [] } },
+    { fetchImpl: async (url, init) => {
+      requests++;
+      assert.equal(url, VALID_WEBHOOK);
+      assert.equal(init.method, 'POST');
+      assert.equal(init.redirect, 'error', 'webhook fetch must refuse HTTP redirects');
+      return { ok: true, status: 204, redirected: false, url: VALID_WEBHOOK };
+    } });
+  assert.equal(accepted.status, 204);
+  assert.equal(requests, 1);
+
+  await assert.rejects(
+    discordWebhookTransport(VALID_WEBHOOK, { content: 'public lobby' },
+      { fetchImpl: async (_url, init) => {
+        assert.equal(init.redirect, 'error');
+        return { ok: true, status: 200, redirected: true, url: 'https://other.example/hook' };
+      } }),
+    e => e instanceof AnnounceConfigError && e.retryable === false && /redirect refused/.test(e.message),
+    'followed redirects must fail closed even with HTTP 200'
+  );
+
+  await assert.rejects(
+    discordWebhookTransport(VALID_WEBHOOK, { content: 'public lobby' },
+      { fetchImpl: async () => ({ ok: true, status: 204, redirected: false,
+        url: 'https://other.example/hook' }) }),
+    /redirect refused/,
+    'a mismatched response URL must fail closed'
+  );
+
+  await assert.rejects(
+    discordWebhookTransport(VALID_WEBHOOK, { content: 'public lobby' },
+      { fetchImpl: async (_url, init) => {
+        assert.equal(init.redirect, 'error');
+        throw new TypeError('fetch redirect disallowed');
+      } }),
+    /redirect disallowed/,
+    'a redirect that Fetch rejects must not be retried by Fetch itself'
+  );
+  console.log('✓ webhook request blocks redirects and rejects suspicious responses');
+}
 
 {
   assert.equal(resolveAnnounceConfig({}).enabled, false);
