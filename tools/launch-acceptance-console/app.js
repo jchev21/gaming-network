@@ -73,9 +73,9 @@
     const file=event.target.files[0];if(!file)return;
     try{
       if(file.size>C.MAX)throw Error('Import exceeds 200 KB');
-      const candidate=C.parse(await file.text());
+      const candidate=C.importRecord(await file.text());
       if(!confirm('Replace current run with this validated prior human record? Imported PASS values are not independently verified.'))return;
-      state=candidate;save();render();msg('Imported human record; no live checks performed.');
+      state=candidate;save();render();msg('Imported statuses and notes only; any previous signoff has been REVOKED. Review evidence in person and sign again. No live checks performed.');
     }catch(e){msg('Import rejected; current run unchanged: '+e.message);}
     finally{$('import').value='';}
   };
