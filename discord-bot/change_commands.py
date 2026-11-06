@@ -27,6 +27,7 @@ from discord_bot_change_bridge import (
 )
 from discord_bot_change_bridge.inventory_live import build_inventory_from_guild
 from discord_bot_change_bridge.preflight import make_phase1_category_proposal
+from discord_bot_change_bridge.layout_overhaul import build_move_batch, build_stage_proposal
 from discord_bot_change_bridge.discord_mutator import DiscordGuildMutator
 from discord_bot_change_bridge.async_apply import apply_approved_plan_async
 
@@ -219,6 +220,89 @@ def register_change_commands(tree: app_commands.CommandTree, *, config: dict, da
             "Owner can request a new review after any server changes.",
         ]
         await interaction.followup.send("\n".join(lines)[:1900], ephemeral=True)
+
+    @tree.command(name="change-moves-preview", description="Owner: preview reorganization of existing public channels")
+    @app_commands.describe(batch="One reviewed batch at a time; use 1 to process remaining moves")
+    async def change_moves_preview(interaction: discord.Interaction, batch: int = 1):
+        if not _is_owner(interaction):
+            return await interaction.response.send_message("Owner-only.", ephemeral=True)
+        err = _guild_ok(interaction, config)
+        if err:
+            return await interaction.response.send_message(err, ephemeral=True)
+        if batch != 1:
+            return await interaction.response.send_message(
+                "Use batch 1 with a fresh inventory after each approved group; no skip-ahead.", ephemeral=True
+            )
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        pc, pg = _protected_ids(config)
+        inventory = build_inventory_from_guild(interaction.guild, protected_channel_ids=pc,
+                                              protected_category_ids=pg)
+        raw = build_move_batch(inventory, now_unix=int(time.time()), batch_number=1)
+        if raw is None:
+            return await interaction.followup.send(
+                "No safe public-to-public moves remain. Missing category? Run /change-layout-preview first.",
+                ephemeral=True
+            )
+        proposal = parse_proposal(raw)
+        ph = plan_hash(proposal)
+        diff = build_plan_diff(proposal, inventory, ph)
+        if diff.blocked:
+            return await interaction.followup.send(
+                "Blocked or stale preview; no changes made. " + "; ".join(diff.risk_flags)[:1500],
+                ephemeral=True
+            )
+        _PENDING[int(interaction.guild.id)] = {
+            "proposal_raw": raw, "plan_hash": ph,
+            "snapshot_digest_actual": inventory.digest(),
+            "previewed_by": int(interaction.user.id),
+            "previewed_at": int(time.time()),
+        }
+        lines = ["**XYZ.HUB — existing public-channel moves (NO CHANGES MADE)**",
+                 f"Moves in this bounded batch: {len(diff.lines)}",
+                 f"Exact owner approval hash: `{ph}`", ""]
+        lines.extend("• " + line.summary for line in diff.lines)
+        lines.append("Private and restricted-parent channels skipped. Channel IDs, messages and overwrites preserved.")
+        lines.append(f"Apply enabled: **{_apply_enabled()}**")
+        await interaction.followup.send("\n".join(lines)[:1950], ephemeral=True)
+
+    @tree.command(name="change-stage-preview", description="Owner: preview a native COMMUNITY Stage channel")
+    async def change_stage_preview(interaction: discord.Interaction):
+        if not _is_owner(interaction):
+            return await interaction.response.send_message("Owner-only.", ephemeral=True)
+        err = _guild_ok(interaction, config)
+        if err:
+            return await interaction.response.send_message(err, ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        pc, pg = _protected_ids(config)
+        inventory = build_inventory_from_guild(interaction.guild, protected_channel_ids=pc,
+                                              protected_category_ids=pg)
+        raw = build_stage_proposal(
+            inventory, now_unix=int(time.time()),
+            community_enabled="COMMUNITY" in (getattr(interaction.guild, "features", ()) or ()),
+        )
+        if raw is None:
+            return await interaction.followup.send(
+                "Stage preview unavailable: create COMMUNITY category first, enable Discord Community server "
+                "features, or an existing #stage already exists. No changes made.", ephemeral=True
+            )
+        proposal = parse_proposal(raw)
+        ph = plan_hash(proposal)
+        diff = build_plan_diff(proposal, inventory, ph)
+        if diff.blocked:
+            return await interaction.followup.send("Stage preview blocked. No changes made.", ephemeral=True)
+        _PENDING[int(interaction.guild.id)] = {
+            "proposal_raw": raw, "plan_hash": ph,
+            "snapshot_digest_actual": inventory.digest(),
+            "previewed_by": int(interaction.user.id),
+            "previewed_at": int(time.time()),
+        }
+        await interaction.followup.send(
+            "**XYZ.HUB COMMUNITY → Stage (review only)**\n"
+            + "\n".join(line.summary for line in diff.lines)
+            + f"\nExact owner hash: `{ph}`"
+            + f"\nApply enabled: **{_apply_enabled()}**",
+            ephemeral=True,
+        )
 
     @tree.command(name="change-approve", description="Owner: approve the exact plan hash from last preview")
     @app_commands.describe(plan_hash_value="Full SHA-256 plan hash from /change-preview")

@@ -24,11 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Compile change-bridge package
-        run: python -m compileall -q discord_bot_change_bridge change_commands.py owner_api.py
+        run: python -m compileall -q discord_bot_change_bridge change_commands.py onboarding_roles.py owner_api.py
       - name: Schema / auth / publish / bulk tests
         run: |
           python -m unittest tests.test_change_bridge tests.test_batch_a_commands \
-            tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight -v
+            tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight tests.test_overhaul_onboarding -v
       - name: Existing bot offline tests
         run: |
           python -m unittest test_xyz_brand_icons test_community_onboarding \

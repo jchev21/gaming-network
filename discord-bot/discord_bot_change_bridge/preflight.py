@@ -48,9 +48,25 @@ def make_public_preflight(guild, *, bot_id: int | None = None) -> dict:
         "bot_permissions": {
             "manage_channels": perm("manage_channels"),
             "manage_guild": perm("manage_guild"),
+            "manage_roles": perm("manage_roles"),
             "send_messages": perm("send_messages"),
             "view_channel": perm("view_channel"),
             "embed_links": perm("embed_links"),
+        },
+        "rules_screening_enabled": "MEMBER_VERIFICATION_GATE_ENABLED" in (
+            getattr(guild, "features", ()) or ()
+        ),
+        "onboarding_roles": {
+            label: [
+                {"id": int(role.id), "bot_can_assign": bool(
+                    perm("manage_roles") and member is not None
+                    and getattr(getattr(member, "top_role", None), "position", -1) >
+                        getattr(role, "position", 10**9)
+                )}
+                for role in (getattr(guild, "roles", ()) or ())
+                if str(getattr(role, "name", "")).strip().casefold() == label.casefold()
+            ]
+            for label in ("Rules Accepted", "Member")
         },
         "snapshot_digest": snap.digest(),
         "category_counts": {"public": len(public_cats),

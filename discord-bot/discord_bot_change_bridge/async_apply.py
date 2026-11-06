@@ -95,6 +95,8 @@ async def _apply_one_async(op: Operation, mutator: Any):
         return await mutator.create_category_async(op.name or "")
     if op.op == "create_text_channel":
         return await mutator.create_text_channel_async(op.name or "", op.parent_category_id, op.topic)
+    if op.op == "create_stage_channel":
+        return await mutator.create_stage_channel_async(op.name or "", op.parent_category_id or 0)
     if op.op == "rename_channel":
         await mutator.rename_channel_async(op.channel_id or 0, op.name or "")
         return None

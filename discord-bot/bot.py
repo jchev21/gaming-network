@@ -16,6 +16,7 @@ from discord import app_commands
 from discord.ext import commands
 from aiohttp import web
 from xyz_brand_icons import apply_xyz_brand_icons
+from onboarding_roles import (AcceptRulesView, register_onboarding_commands, on_screening_update)
 
 ROOT = Path(__file__).resolve().parent
 # On Railway, settings and data survive deployments on the /data volume.
@@ -99,6 +100,7 @@ async def setup_hook():
     asyncio.create_task(start_web())
     bot.add_view(DashboardView())
     bot.add_view(NativeChannelHubView())
+    bot.add_view(AcceptRulesView())
     for _gid, _g in data.get('poker', {}).items():
         if _g.get('status') == 'open':
             bot.add_view(JoinView(_gid))
@@ -149,6 +151,16 @@ async def on_ready():
                 print(f"Guild commands synced: {connected_guild.name} ({len(synced)} commands)")
     except Exception as e:
         print("Command sync:", e)
+
+@bot.event
+async def on_member_update(before, after):
+    # Discord's genuine pending True -> False event, never a forged checkbox.
+    try:
+        outcome = await on_screening_update(before, after)
+        if outcome and outcome.startswith('Rules Accepted granted'):
+            print('XYZ onboarding: screened member received Rules Accepted role')
+    except Exception as exc:
+        print('XYZ onboarding event failed:', type(exc).__name__)
 
 @bot.event
 async def on_message(message):
@@ -1635,6 +1647,7 @@ register_challenges(tree, ROOT)
 # Change bridge is registered with the existing bot and explicitly fail-closed.
 # Guild mutations remain blocked unless the owner separately enables apply.
 register_change_commands(tree, config=config, data_dir=DATA_DIR)
+register_onboarding_commands(tree, DATA_DIR)
 
 if __name__ == "__main__":
     token = os.getenv("DISCORD_TOKEN")
