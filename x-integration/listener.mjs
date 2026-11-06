@@ -64,7 +64,7 @@ function settings(env = process.env) {
   const requestedPageSize = cappedInt(env.X_POLL_MAX_RESULTS, 5, 20, 'X_POLL_MAX_RESULTS');
   if (requestedPageSize < 5) throw new Error('X_POLL_MAX_RESULTS must be 5–20');
   return {
-    handle: env.X_HANDLE || 'jordan__chev',
+    handle: env.X_HANDLE || '_xyzhub_',
     userId: env.X_USER_ID || '',
     bearer: env.X_API_BEARER_TOKEN || '',
     admin: env.X_ADMIN_TOKEN || '',
