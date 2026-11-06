@@ -1,0 +1,58 @@
+name: Launch Readiness Checks
+
+on:
+  push:
+    branches:
+      - ai/launch-readiness
+      - fix/discord-dashboard-response
+  pull_request:
+    branches:
+      - fix/discord-dashboard-response
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  launch-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python sources
+        run: |
+          python -m compileall -q discord-bot launch
+
+      - name: Run launch unit tests (offline)
+        run: |
+          python -m unittest discover -s launch/tests -v
+
+      - name: Run preflight (offline)
+        run: |
+          python launch/preflight.py
+
+      - name: Run guild planner dry-run
+        run: |
+          python launch/guild_planner.py --format json --out /tmp/plan.json
+          test -s /tmp/plan.json
+          python -c "import json; d=json.load(open('/tmp/plan.json')); assert 'status' in d and 'actions' in d"
+
+      - name: Refuse apply path in CI
+        run: |
+          # Apply must not succeed in CI
+          if python launch/guild_planner.py --apply; then
+            echo "ERROR: apply should have been refused"
+            exit 1
+          else
+            echo "Apply correctly refused in CI"
+          fi
+
+      - name: Preserve existing dashboard regression checks presence
+        run: |
+          test -f .github/workflows/discord-dashboard-check.yml
+          echo "Existing discord-dashboard-check.yml retained"
