@@ -6,6 +6,7 @@ on:
       - fix/discord-dashboard-response
       - launch/discord-dashboard-rate-limit-guard
       - feature/discord-native-hub-components-v2
+      - review/rules-x-onboarding-helper-1105
   workflow_dispatch:
 
 permissions:
@@ -24,6 +25,8 @@ jobs:
         run: python -m unittest discover -s discord-bot -p 'test_dashboard_refresh.py' -v
       - name: Unit test safe native X lobbies feed
         run: python -m unittest discover -s discord-bot -p 'test_native_hub_feeds.py' -v
+      - name: Test community rules guidance and official X OAuth entry
+        run: python -m unittest discover -s discord-bot -p 'test_community_onboarding.py' -v
       - name: Check all Python sources compile
         run: python -m compileall -q discord-bot
       - name: Build production Discord bot container
