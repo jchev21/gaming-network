@@ -241,7 +241,7 @@ def register_change_commands(tree: app_commands.CommandTree, *, config: dict, da
         if raw is None:
             return await interaction.followup.send(
                 "No safe public-to-public moves remain. Missing category? Run /change-layout-preview first.",
-                ephemeral=True)
+                ephemeral=True
             )
         proposal = parse_proposal(raw)
         ph = plan_hash(proposal)
@@ -249,7 +249,7 @@ def register_change_commands(tree: app_commands.CommandTree, *, config: dict, da
         if diff.blocked:
             return await interaction.followup.send(
                 "Blocked or stale preview; no changes made. " + "; ".join(diff.risk_flags)[:1500],
-                ephemeral=True)
+                ephemeral=True
             )
         _PENDING[int(interaction.guild.id)] = {
             "proposal_raw": raw, "plan_hash": ph,
