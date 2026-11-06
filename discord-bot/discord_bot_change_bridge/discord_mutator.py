@@ -18,6 +18,15 @@ class DiscordGuildMutator:
         ch = await self.guild.create_text_channel(name, category=category, topic=topic or None, reason=self.reason)
         return int(ch.id)
 
+    async def create_stage_channel_async(self, name: str, parent_category_id: int) -> int:
+        category = self.guild.get_channel(int(parent_category_id))
+        if category is None or str(getattr(category, "type", "")) != "category":
+            raise RuntimeError("stage requires existing category")
+        if "COMMUNITY" not in (getattr(self.guild, "features", ()) or ()):
+            raise RuntimeError("native Discord Stage requires Community server enabled")
+        channel = await self.guild.create_stage_channel(name, category=category, reason=self.reason)
+        return int(channel.id)
+
     async def rename_channel_async(self, channel_id: int, name: str) -> None:
         ch = self.guild.get_channel(int(channel_id))
         if ch is None:
@@ -37,7 +46,8 @@ class DiscordGuildMutator:
             raise RuntimeError(f"channel {channel_id} not found")
         if cat is None:
             raise RuntimeError(f"category {parent_category_id} not found")
-        await ch.edit(category=cat, reason=self.reason)
+        # Explicitly preserve existing channel permission overwrites.
+        await ch.edit(category=cat, sync_permissions=False, reason=self.reason)
 
     async def publish_message_async(self, channel_id: int, content: str | None,
                                     embed_title: str | None, embed_description: str | None,
