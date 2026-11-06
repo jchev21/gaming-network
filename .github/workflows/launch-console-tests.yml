@@ -5,6 +5,12 @@ on:
     paths:
       - 'tools/launch-acceptance-console/**'
       - '.github/workflows/launch-console-tests.yml'
+  push:
+    branches:
+      - review/perplexity-in-person-launch-console-1105
+    paths:
+      - 'tools/launch-acceptance-console/**'
+      - '.github/workflows/launch-console-tests.yml'
   workflow_dispatch:
 
 permissions:
