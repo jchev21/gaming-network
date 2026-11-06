@@ -69,6 +69,37 @@ COMING_SOON_TOPICS = {
 }
 
 
+def voice_channels_per_category() -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for cat, specs in TARGET_CATEGORIES.items():
+        out[cat] = [s["name"] for s in specs if s.get("type") == "voice"]
+    return out
+
+
+def assert_one_voice_per_public_category(public_names: tuple[str, ...] | None = None) -> None:
+    names = public_names or (
+        "START HERE", "GAMING NETWORK", "LIVE DASHBOARD",
+        "EDUCATION", "AFFILIATES & PARTNERS", "COMMUNITY",
+    )
+    voices = voice_channels_per_category()
+    for cat in names:
+        v = voices.get(cat, [])
+        if len(v) != 1:
+            raise ValueError(
+                f"Category {cat!r} must have exactly one member-visible voice channel, found {v}"
+            )
+
+
+def is_private_channel_record(meta, visibility_row, blocklist: set[str]) -> bool:
+    if meta is None:
+        return False
+    if meta.name.lower() in blocklist:
+        return True
+    if visibility_row is not None and visibility_row.view is False:
+        return True
+    return False
+
+
 @dataclass
 class PlanAction:
     op: str
@@ -100,6 +131,9 @@ def build_plan(snapshot: GuildSnapshot, config: PlanConfig) -> PlanResult:
             f"guild_id mismatch: snapshot={snapshot.guild_id} config={config.guild_id} (fail closed)"
         )
 
+    assert_one_voice_per_public_category(
+        tuple(c for c in config.public_category_names if c != "BOT COMMANDS")
+    )
     result = PlanResult(guild_id=snapshot.guild_id)
     result.visibility = effective_member_visibility(snapshot)
 
@@ -161,6 +195,31 @@ def build_plan(snapshot: GuildSnapshot, config: PlanConfig) -> PlanResult:
             resolved_id = resolution.channels.get(name)
             if resolved_id is not None:
                 meta = ch_by_id.get(resolved_id)
+                vis_row = None
+                if result.visibility is not None:
+                    vis_row = next(
+                        (v for v in result.visibility.channels if v.channel_id == resolved_id),
+                        None,
+                    )
+                block = {b.lower() for b in config.private_name_blocklist}
+                if is_private_channel_record(meta, vis_row, block):
+                    result.actions.append(
+                        PlanAction(
+                            op="reject_private_reuse",
+                            category=cat_name,
+                            channel=name,
+                            channel_id=resolved_id,
+                            category_id=cat_id,
+                            channel_type=ctype,
+                            detail=(
+                                f"Refuse reuse of id={resolved_id} "
+                                f"(private/hidden from @everyone or blocklisted name)"
+                            ),
+                            risk="high",
+                        )
+                    )
+                    continue
+                detail = f"Reuse channel id={resolved_id}"
                 result.actions.append(
                     PlanAction(
                         op="reuse_channel",
@@ -169,7 +228,7 @@ def build_plan(snapshot: GuildSnapshot, config: PlanConfig) -> PlanResult:
                         channel_id=resolved_id,
                         category_id=cat_id,
                         channel_type=ctype,
-                        detail=f"Reuse channel id={resolved_id}",
+                        detail=detail,
                         risk="low",
                     )
                 )
