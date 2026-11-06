@@ -1,0 +1,35 @@
+name: Private Perplexity Source Review Handoff
+on:
+  push:
+    branches:
+      - review/perplexity-source-handoff-1105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build-private-review-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Validate handoff script and source baseline
+        run: |
+          bash -n tools/build-perplexity-source-handoff.sh
+          git rev-parse HEAD
+      - name: Collect and scan sanitized integration source and PR patches
+        run: bash tools/build-perplexity-source-handoff.sh
+      - name: Upload private source review handoff (7 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gaming-network-perplexity-source-handoff
+          path: ${{ runner.temp }}/gaming-network-perplexity-source-handoff.tar.gz
+          if-no-files-found: error
+          retention-days: 7
