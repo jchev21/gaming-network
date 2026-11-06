@@ -5,8 +5,14 @@ import path from 'node:path';
 const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 const rnd = () => crypto.randomBytes(32).toString('base64url');
 const cookie = (req,k) => {
- const part=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
- return part ? decodeURIComponent(part.slice(k.length+1)) : null;
+ // Malformed percent escapes are untrusted input, not an authentication exception.
+ const header=String(req.headers.cookie||'');
+ if(header.length>8192)return null;
+ const part=header.split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
+ if(!part)return null;
+ const encoded=part.slice(k.length+1);
+ if(encoded.length>256)return null;
+ try{return decodeURIComponent(encoded)}catch{return null}
 };
 const send=(res,status,obj,headers={})=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',...headers});res.end(JSON.stringify(obj))};
 const setCookie=(key,val,age)=>key+'='+encodeURIComponent(val)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+age;
