@@ -11,6 +11,7 @@ from pathlib import Path
 import discord
 from native_hub_feeds import public_lobby_lines
 from dashboard_refresh import dashboard_fingerprint
+from community_onboarding import X_OAUTH_ENTRY, COMMUNITY_RULES, validate_oauth_entry, public_onboarding_instructions
 from discord import app_commands
 from discord.ext import commands
 from aiohttp import web
@@ -182,6 +183,38 @@ async def setuphub(interaction: discord.Interaction):
     except Exception as e:
         print("Dashboard post:", e)
     await interaction.followup.send(f"**Hub structure ready.**\nCreated: {len(created)} channels\nAlready existed: {len(existing)}\n\nNext: use `/hubpanel` in #bot-commands.", ephemeral=True)
+
+@tree.command(name="get-started", description="Read community rules and open the verified X sign-in")
+async def get_started(interaction: discord.Interaction):
+    """Information only: native Discord Rules Screening controls acceptance."""
+    if not validate_oauth_entry():
+        return await interaction.response.send_message(
+            "The X sign-in link is temporarily unavailable. Contact a moderator.",
+            ephemeral=True,
+        )
+    embed = discord.Embed(
+        title="Gaming Network · Member Onboarding",
+        description=public_onboarding_instructions(),
+        color=accent_color(),
+    )
+    embed.add_field(
+        name="Community rules",
+        value="\\n".join(f"{i}. {rule}" for i, rule in enumerate(COMMUNITY_RULES, 1)),
+        inline=False,
+    )
+    view = discord.ui.View(timeout=180)
+    view.add_item(discord.ui.Button(
+        label="Sign in to X (X account only)",
+        url=X_OAUTH_ENTRY,
+        style=discord.ButtonStyle.link,
+    ))
+    await interaction.response.send_message(
+        embed=embed,
+        view=view,
+        ephemeral=True,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
+
 
 @tree.command(name="hubpanel", description="Post a quick Discord Hub control panel")
 async def hubpanel(interaction: discord.Interaction):
