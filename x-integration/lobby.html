@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark"><title>Gaming Network | Live Game Lobby</title>
+<meta name="color-scheme" content="dark"><link rel="icon" type="image/svg+xml" href="https://gaming-network-web-production.up.railway.app/xyz-logo-reveal.svg">
+<title>Gaming Network | Live Game Lobby</title>
 <style>
 :root{font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark;color:#f5f3ff;background:#090b13}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0%,#37234b,transparent 40%),#090b13;min-height:100vh}
@@ -21,7 +22,7 @@ ul{list-style:none;padding:0;margin:12px 0}li{padding:10px 12px;border-bottom:1p
 .warning{color:#ffdba4}footer{font-size:12px;color:#9996ad}
 @media(max-width:640px){.stat{grid-template-columns:1fr}.panel{padding:18px}}
 </style></head><body>
-<header><div class="brand">GAMING <b>NETWORK</b></div><span><a href="/my-games">My Games</a> · <a href="/high-scores">High Scores Arcade</a></span></header>
+<header><div class="brand"><img src="https://gaming-network-web-production.up.railway.app/xyz-logo-reveal.svg" alt="XYZ logo reveal soon" width="48" height="48" style="width:48px;height:48px;object-fit:contain;vertical-align:middle;margin-right:8px">GAMING <b>NETWORK</b></div><span><a href="/my-games">My Games</a> · <a href="/high-scores">High Scores Arcade</a></span></header>
 <main><div><span class="status">X-VERIFIED PLAYER LOBBY</span><h1 id="title">Loading game…</h1><p id="summary">Retrieving game status from the server.</p></div>
 <div class="panel"><div class="stat"><div><small>Entries</small><b id="entries">—</b></div><div><small>Confirmed</small><b id="confirmed">—</b></div><div><small>Entry closes</small><b id="timer">—</b></div></div><p id="notice" class="warning" role="status"></p><button id="join" disabled>Sign in to join</button> <button id="waitlistBtn" hidden disabled>Join waitlist</button> <button id="withdraw" hidden disabled>Withdraw entry</button> <button id="cancel" hidden disabled>Cancel game</button></div>
 <div class="panel"><h2>Players</h2><ul id="players"><li>Waiting for players…</li></ul>
