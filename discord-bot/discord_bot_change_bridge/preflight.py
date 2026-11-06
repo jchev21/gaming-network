@@ -63,3 +63,48 @@ def make_public_preflight(guild, *, bot_id: int | None = None) -> dict:
             name for name in DESIRED_SECTIONS if name.casefold() not in existing
         ],
     }
+
+
+def make_phase1_category_proposal(inventory, *, now_unix: int):
+    """Build safe public-category-only proposal using a FRESH live inventory.
+
+    It never creates duplicates of existing public OR restricted categories
+    and never mutates the Discord API. Missing sections are added as separate
+    create_category ops; actual channel moves require a second owner review.
+    """
+    if inventory.guild_id != TARGET_GUILD_ID:
+        raise ValueError("Unexpected guild for XYZ.HUB phase 1")
+    present = {str(x.name).strip().casefold() for x in inventory.categories}
+    # Reuse the existing real Gaming Network — Start Here and EDUCATION.
+    desired = (
+        ("COMMUNITY", "community"),
+        ("GAMES & X", "games-x"),
+        ("ALGO LAB", "algo-lab"),
+        ("ALL FIRMS", "all-firms"),
+        ("FEEDBACK", "feedback"),
+        ("DISCORD STUDIO", "discord-studio"),
+    )
+    operations = []
+    for name, slug in desired:
+        if name.casefold() not in present:
+            operations.append({
+                "op_id": "create-" + slug,
+                "op": "create_category",
+                "name": name,
+            })
+    if not operations:
+        return None
+    return {
+        "schema_version": "1.0.0",
+        "guild_id": inventory.guild_id,
+        "proposal_id": "xyz-hub-phase1-live-layout",
+        "idempotency_token": "xyz-hub-phase1-" + inventory.digest()[:40],
+        "snapshot_digest": inventory.digest(),
+        "created_at_unix": now_unix,
+        "expires_at_unix": now_unix + 3600,
+        "requester_note": (
+            "Owner preview of missing PUBLIC categories only; no moves, "
+            "posts, deletes, permission grants or role changes."
+        ),
+        "operations": operations,
+    }
