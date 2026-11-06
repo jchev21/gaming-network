@@ -199,7 +199,7 @@ async def get_started(interaction: discord.Interaction):
     )
     embed.add_field(
         name="Community rules",
-        value="\\n".join(f"{i}. {rule}" for i, rule in enumerate(COMMUNITY_RULES, 1)),
+        value="\n".join(f"{i}. {rule}" for i, rule in enumerate(COMMUNITY_RULES, 1)),
         inline=False,
     )
     view = discord.ui.View(timeout=180)
