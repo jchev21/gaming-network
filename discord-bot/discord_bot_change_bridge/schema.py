@@ -15,6 +15,7 @@ ALLOWED_OPS = frozenset({
     "rename_channel",
     "update_topic",
     "move_channel",
+    "publish_message",
 })
 
 _CHANNEL_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,98}[a-z0-9])?$")
@@ -22,7 +23,7 @@ _CATEGORY_NAME_RE = re.compile(r"[^\x00-\x1f]{1,100}")
 
 
 class ProposalError(ValueError):
-    """Fail closed: proposal is invalid or unsafe."""
+    pass
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,10 @@ class Operation:
     name: str | None = None
     topic: str | None = None
     parent_category_id: int | None = None
+    content: str | None = None
+    embed_title: str | None = None
+    embed_description: str | None = None
+    embed_color: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -80,7 +85,7 @@ _KNOWN_TOP = frozenset({
 })
 _KNOWN_OP = frozenset({
     "op_id", "op", "channel_id", "category_id", "name", "topic",
-    "parent_category_id",
+    "parent_category_id", "content", "embed_title", "embed_description", "embed_color",
 })
 
 
@@ -135,6 +140,10 @@ def parse_proposal(raw: Any) -> ChangeProposal:
         parent_category_id = item.get("parent_category_id")
         name = item.get("name")
         topic = item.get("topic")
+        content = item.get("content")
+        embed_title = item.get("embed_title")
+        embed_description = item.get("embed_description")
+        embed_color = item.get("embed_color")
 
         if channel_id is not None:
             if isinstance(channel_id, bool) or not isinstance(channel_id, int) or channel_id <= 0:
@@ -151,6 +160,17 @@ def parse_proposal(raw: Any) -> ChangeProposal:
             raise ProposalError(f"operations[{i}].topic must be string")
         if topic is not None and len(topic) > 1024:
             raise ProposalError(f"operations[{i}].topic too long")
+        if content is not None and not isinstance(content, str):
+            raise ProposalError(f"operations[{i}].content must be string")
+        if content is not None and len(content) > 2000:
+            raise ProposalError(f"operations[{i}].content too long (max 2000)")
+        for ek, ev in (("embed_title", embed_title), ("embed_description", embed_description), ("embed_color", embed_color)):
+            if ev is not None and not isinstance(ev, str):
+                raise ProposalError(f"operations[{i}].{ek} must be string")
+        if embed_title is not None and len(embed_title) > 256:
+            raise ProposalError(f"operations[{i}].embed_title too long")
+        if embed_description is not None and len(embed_description) > 4096:
+            raise ProposalError(f"operations[{i}].embed_description too long")
 
         if op == "create_category":
             if not name or not _CATEGORY_NAME_RE.match(name):
@@ -177,32 +197,35 @@ def parse_proposal(raw: Any) -> ChangeProposal:
                 raise ProposalError(f"operations[{i}] move_channel requires channel_id")
             if parent_category_id is None:
                 raise ProposalError(f"operations[{i}] move_channel requires parent_category_id")
+        elif op == "publish_message":
+            if channel_id is None:
+                raise ProposalError(f"operations[{i}] publish_message requires channel_id")
+            if not content and not embed_title and not embed_description:
+                raise ProposalError(f"operations[{i}] publish_message needs content or embed")
 
         ops.append(Operation(
             op_id=op_id, op=op, channel_id=channel_id, category_id=category_id,
             name=name, topic=topic, parent_category_id=parent_category_id,
+            content=content, embed_title=embed_title,
+            embed_description=embed_description, embed_color=embed_color,
         ))
 
     canonical_obj = {
-        "schema_version": version,
-        "guild_id": guild_id,
-        "proposal_id": proposal_id,
-        "idempotency_token": idem,
-        "snapshot_digest": digest,
-        "created_at_unix": created,
-        "expires_at_unix": expires,
-        "requester_note": note,
+        "schema_version": version, "guild_id": guild_id, "proposal_id": proposal_id,
+        "idempotency_token": idem, "snapshot_digest": digest,
+        "created_at_unix": created, "expires_at_unix": expires, "requester_note": note,
         "operations": [
             {k: v for k, v in {
                 "op_id": o.op_id, "op": o.op, "channel_id": o.channel_id,
                 "category_id": o.category_id, "name": o.name, "topic": o.topic,
-                "parent_category_id": o.parent_category_id,
+                "parent_category_id": o.parent_category_id, "content": o.content,
+                "embed_title": o.embed_title, "embed_description": o.embed_description,
+                "embed_color": o.embed_color,
             }.items() if v is not None}
             for o in ops
         ],
     }
     canonical_json = json.dumps(canonical_obj, sort_keys=True, separators=(",", ":"))
-
     return ChangeProposal(
         schema_version=version, guild_id=guild_id, proposal_id=proposal_id,
         idempotency_token=idem, snapshot_digest=digest, operations=tuple(ops),
