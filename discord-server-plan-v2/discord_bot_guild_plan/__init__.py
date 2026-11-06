@@ -3,6 +3,8 @@
 - Explicit guild_id required
 - Channel reuse by explicit channel id when provided
 - Fail closed on ambiguous name to id mappings
+- One member-visible voice channel per public category
+- Reject private/hidden channel reuse for public targets
 - Report effective member visibility WITHOUT changing permissions
 - No Discord API calls; no live edits
 """
@@ -25,6 +27,9 @@ from .plan import (
     PlanResult,
     build_plan,
     plan_to_markdown,
+    voice_channels_per_category,
+    assert_one_voice_per_public_category,
+    is_private_channel_record,
 )
 
 __all__ = [
@@ -48,4 +53,7 @@ __all__ = [
     "PlanResult",
     "build_plan",
     "plan_to_markdown",
+    "voice_channels_per_category",
+    "assert_one_voice_per_public_category",
+    "is_private_channel_record",
 ]
