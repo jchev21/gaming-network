@@ -18,7 +18,12 @@ const send=(res,status,obj,headers={})=>{res.writeHead(status,{'content-type':'a
 const setCookie=(key,val,age)=>key+'='+encodeURIComponent(val)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+age;
 const safeReturn=next=>{
  const s=String(next||'/setup');
- return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s)&&!s.startsWith('//')&&!s.includes('\\')?s.slice(0,300):'/setup';
+ // Reject control characters in OAuth return targets, including CRLF in query strings.
+ // Node refuses control characters in Location headers; without this check a
+ // crafted next= value could consume a valid flow then fail its final redirect.
+ return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s) &&
+   !s.startsWith('//') && !s.includes('\\') && !/[\u0000-\u001f\u007f]/.test(s)
+   ? s.slice(0,300) : '/setup';
 };
 export function createPKCE(){
  const verifier=rnd();
