@@ -34,6 +34,31 @@ def _everyone_view_denied(overwrites: dict, everyone_role: Any) -> bool | None:
     return None
 
 
+
+def _visible_to_everyone(channel: Any, everyone_role: Any) -> bool:
+    """Use effective View Channel permission. Unknown is private (fail closed).
+
+    Looking only for explicit @everyone denies is unsafe: a channel can be
+    hidden by inherited permissions or by the role's base guild permissions.
+    discord.py's permissions_for() resolves the effective channel visibility.
+    """
+    if everyone_role is None:
+        return False
+    try:
+        resolver = getattr(channel, "permissions_for", None)
+        if callable(resolver):
+            effective = resolver(everyone_role)
+            view = getattr(effective, "view_channel", None)
+            if isinstance(view, bool):
+                return view
+    except (TypeError, ValueError, AttributeError):
+        pass
+    # Synthetic inventory or incomplete SDK context: explicit allow/deny
+    # can be inspected, but missing information must never imply "public".
+    denied = _everyone_view_denied(getattr(channel, "overwrites", {}) or {}, everyone_role)
+    return denied is False
+
+
 def build_inventory_from_guild(
     guild: Any,
     *,
@@ -45,8 +70,10 @@ def build_inventory_from_guild(
     channels = []
 
     for cat in getattr(guild, "categories", []) or []:
-        denied = _everyone_view_denied(getattr(cat, "overwrites", {}) or {}, everyone)
-        categories.append(CategorySnap(id=int(cat.id), name=str(cat.name), private=bool(denied is True)))
+        categories.append(CategorySnap(
+            id=int(cat.id), name=str(cat.name),
+            private=not _visible_to_everyone(cat, everyone),
+        ))
 
     for ch in getattr(guild, "channels", []) or []:
         if getattr(ch, "type", None) is not None:
@@ -67,16 +94,10 @@ def build_inventory_from_guild(
             ctype = "forum"
         parent = getattr(ch, "category_id", None) or getattr(getattr(ch, "category", None), "id", None)
         topic = str(getattr(ch, "topic", None) or "")
-        denied = _everyone_view_denied(getattr(ch, "overwrites", {}) or {}, everyone)
-        if denied is None and parent is not None:
-            for c in categories:
-                if c.id == int(parent) and c.private:
-                    denied = True
-                    break
         channels.append(ChannelSnap(
             id=int(ch.id), name=str(ch.name), type=ctype,
             category_id=int(parent) if parent else None, topic=topic,
-            private=bool(denied is True),
+            private=not _visible_to_everyone(ch, everyone),
         ))
 
     return GuildInventory(
