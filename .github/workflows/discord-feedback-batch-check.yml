@@ -7,6 +7,7 @@ on:
     paths:
       - 'discord-bot/gn_feedback/**'
       - 'discord-bot/tests/test_gn_feedback.py'
+      - 'discord-bot/tests/test_gn_repair_partial.py'
       - 'discord-bot/.env.feedback.example'
       - '.github/workflows/discord-feedback-batch-check.yml'
   workflow_dispatch:
@@ -27,6 +28,8 @@ jobs:
         run: python -m compileall -q discord-bot/gn_feedback discord-bot/tests
       - name: Test complete Perplexity Batch 1 without network
         run: python -m unittest discover -s discord-bot/tests -p 'test_gn_feedback.py' -v
+      - name: Test independently delivered repair modules
+        run: python -m unittest discover -s discord-bot/tests -p 'test_gn_repair_partial.py' -v
       - name: Check default opt-in and no bot integration
         run: |
           python - <<'PY'
