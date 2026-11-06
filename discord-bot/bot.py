@@ -15,6 +15,7 @@ from community_onboarding import X_OAUTH_ENTRY, COMMUNITY_RULES, validate_oauth_
 from discord import app_commands
 from discord.ext import commands
 from aiohttp import web
+from xyz_brand_icons import apply_xyz_brand_icons
 
 ROOT = Path(__file__).resolve().parent
 # On Railway, settings and data survive deployments on the /data volume.
@@ -106,6 +107,8 @@ async def setup_hook():
 async def on_ready():
     print(f"Hub connected as {bot.user} | guild={config.get('hub_guild_id')}")
     print("Servers the bot can see:", ", ".join(f"{g.name} ({g.id})" for g in bot.guilds) or "none")
+    # Owner-authorized, guild-ID-pinned icon change; no channel/message operations.
+    asyncio.create_task(apply_xyz_brand_icons(bot, DATA_DIR))
     try:
         if not refresh_dashboards.is_running():
             refresh_dashboards.start()
