@@ -53,6 +53,12 @@ export function newestId(ids) {
   return ids.map(String).filter(x => /^\d+$/.test(x)).reduce(
     (best, x) => !best || BigInt(x) > BigInt(best) ? x : best, null);
 }
+function cappedInt(raw, defaultValue, max, label) {
+  if (raw === undefined || raw === '') return defaultValue;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n < 1 || n > max) throw new Error(label + ' must be 1–' + max);
+  return n;
+}
 function settings(env = process.env) {
   const interval = Number(env.X_POLL_SECONDS || 120);
   return {
@@ -63,6 +69,8 @@ function settings(env = process.env) {
     enabled: env.X_POLL_ENABLED === 'true',
     once: env.X_POLL_ENABLED === 'once',
     pollSeconds: Number.isFinite(interval) ? Math.min(3600, Math.max(90, interval)) : 120,
+    maxReadsPerDay: cappedInt(env.X_MAX_READS_PER_DAY, 8, 40, 'X_MAX_READS_PER_DAY'),
+    maxPagesPerPoll: cappedInt(env.X_MAX_PAGES_PER_POLL, 2, 5, 'X_MAX_PAGES_PER_POLL'),
     dataDir: env.DATA_DIR || './runtime',
     port: Number(env.PORT || 8080),
   };
@@ -70,13 +78,32 @@ function settings(env = process.env) {
 async function readState(file) {
   try {
     const d = JSON.parse(await fs.readFile(file, 'utf8'));
+    if (typeof d !== 'object' || !d || Array.isArray(d)) throw new Error('Invalid state root');
+    if (d.since_id !== null && d.since_id !== undefined && !/^\d+$/.test(String(d.since_id)))
+      throw new Error('Invalid saved since_id');
+    const scan = d.scan || null;
+    if (scan && (!/^\d+$/.test(String(scan.base_since_id || '')) && scan.base_since_id !== null ||
+      (scan.next_token !== null && (typeof scan.next_token !== 'string' || scan.next_token.length > 4096)) ||
+      (scan.highest_id !== null && !/^\d+$/.test(String(scan.highest_id))) ||
+      !Number.isSafeInteger(scan.scanned) || scan.scanned < 0))
+      throw new Error('Invalid saved scan cursor');
+    const budget = d.budget || null;
+    if (budget && (!/^\d{4}-\d\d-\d\d$/.test(String(budget.day)) ||
+      !Number.isSafeInteger(budget.used) || budget.used < 0))
+      throw new Error('Invalid saved budget');
+    if (d.pending !== undefined && (!Array.isArray(d.pending) || d.pending.length > maxStateItems))
+      throw new Error('Invalid saved pending queue');
     return { since_id: d.since_id || null, initialized: !!d.initialized,
       target_user_id: d.target_user_id || null, target_handle: d.target_handle || null,
-      pending: Array.isArray(d.pending) ? d.pending.slice(0, maxStateItems) : [],
+      pending: d.pending || [], scan, budget,
+      pause_until: d.pause_until || null, blocked_reason: d.blocked_reason || null,
       last_checked: d.last_checked || null, last_error: d.last_error || null };
   } catch (e) {
-    if (e.code !== 'ENOENT') console.error('Invalid X state; starting empty', e.message);
-    return { since_id: null, initialized: false, pending: [], last_checked: null, last_error: null, target_user_id: null, target_handle: null };
+    if (e.code !== 'ENOENT')
+      throw new Error('Stored X mention state unreadable; refusing cursor reset: ' + e.message);
+    return { since_id: null, initialized: false, pending: [], scan: null, budget: null,
+      pause_until: null, blocked_reason: null, last_checked: null, last_error: null,
+      target_user_id: null, target_handle: null };
   }
 }
 async function persist(file, state) {
@@ -85,73 +112,117 @@ async function persist(file, state) {
   await fs.writeFile(temp, JSON.stringify(state, null, 2), { mode: 0o600 });
   await fs.rename(temp, file);
 }
-async function pollX(s, state, file) {
+export async function pollX(s, state, file) {
   if (!s.bearer) throw new Error('X_API_BEARER_TOKEN required');
-  // Reuse the verified numeric account ID for the unchanged handle to avoid a paid lookup on each restart.
+  if (state.blocked_reason) throw new Error('X reads blocked: ' + state.blocked_reason);
+  if (state.pause_until && Date.now() < Date.parse(state.pause_until))
+    throw new Error('X reads paused until ' + state.pause_until);
+  if (state.target_handle && state.target_handle !== s.handle)
+    throw new Error('X_HANDLE changed; operator must migrate the cursor safely');
+  const maxReads = s.maxReadsPerDay || 8;
+  const pagesPerPoll = s.once ? 1 : (s.maxPagesPerPoll || 2);
+  const day = new Date().toISOString().slice(0, 10);
+  if (!state.budget || state.budget.day !== day) {
+    state.budget = { day, used: 0 };
+    await persist(file, state);
+  }
+  async function request(url) {
+    // Reserve before the outbound request: crashes/errors still count toward the cap.
+    const today = new Date().toISOString().slice(0, 10);
+    if (state.budget.day !== today) state.budget = { day: today, used: 0 };
+    if (state.budget.used >= maxReads) throw new Error('X daily API read-call cap reached');
+    state.budget.used++;
+    await persist(file, state);
+    const response = await fetch(url, { headers: { Authorization: 'Bearer ' + s.bearer },
+      signal: AbortSignal.timeout(15000) });
+    if (!response.ok) {
+      const status = response.status;
+      if ([401, 402, 403].includes(status)) state.blocked_reason = 'HTTP ' + status + ': operator review required';
+      else {
+        const retry = Number(response.headers.get('retry-after'));
+        const delaySeconds = status === 429
+          ? (Number.isFinite(retry) && retry > 0 ? Math.min(86400, Math.max(60, retry)) : 3600)
+          : 300;
+        state.pause_until = new Date(Date.now() + delaySeconds * 1000).toISOString();
+      }
+      await persist(file, state);
+      throw new Error('X API returned HTTP ' + status);
+    }
+    return response;
+  }
+  // Cache the known account ID across restarts; do not pay for repeated profile lookups.
   if (!s.userId && state.target_handle === s.handle && /^\d+$/.test(String(state.target_user_id || ''))) {
     s.userId = state.target_user_id;
   }
   if (!s.userId) {
-    const lookup = await fetch('https://api.x.com/2/users/by/username/' +
-      encodeURIComponent(s.handle.replace(/^@/, '')), {
-      headers: { Authorization: 'Bearer ' + s.bearer },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!lookup.ok) throw new Error('X username lookup HTTP ' + lookup.status);
+    const lookup = await request('https://api.x.com/2/users/by/username/' +
+      encodeURIComponent(s.handle.replace(/^@/, '')));
     const profile = await lookup.json();
     if (!/^\d+$/.test(String(profile.data?.id || '')) ||
         String(profile.data?.username || '').toLowerCase() !== s.handle.replace(/^@/, '').toLowerCase())
       throw new Error('X account lookup returned unexpected profile');
     s.userId = String(profile.data.id);
   }
-  if (!/^\d+$/.test(s.userId)) throw new Error('X_USER_ID must be numeric');
+  if (!/^\d+$/.test(String(s.userId))) throw new Error('X_USER_ID must be numeric');
   state.target_user_id = s.userId;
   state.target_handle = s.handle;
-  let nextToken;
-  let posts = [];
-  // Bounded pagination, read only. Does not call POST /2/tweets.
-  for (let page = 0; page < (s.once ? 1 : 5); page++) {
+  if (state.pending.length >= maxStateItems) throw new Error('X pending review queue full; no cursor advanced');
+  if (!state.scan) {
+    state.scan = { base_since_id: state.since_id, next_token: null, highest_id: null, scanned: 0 };
+    await persist(file, state);
+  }
+  let scanned = 0, added = 0, pages = 0;
+  for (let page = 0; page < pagesPerPoll; page++) {
+    const scan = state.scan;
     const url = new URL('https://api.x.com/2/users/' + s.userId + '/mentions');
     url.searchParams.set('max_results', s.once ? '5' : '100');
     url.searchParams.set('tweet.fields', 'author_id,created_at,entities');
-    if (state.since_id) url.searchParams.set('since_id', state.since_id);
-    if (nextToken) url.searchParams.set('pagination_token', nextToken);
-    const response = await fetch(url, { headers: { Authorization: 'Bearer ' + s.bearer },
-      signal: AbortSignal.timeout(15000) });
-    if (!response.ok) {
-      throw new Error('X API returned HTTP ' + response.status +
-        (response.status === 429 ? ' (rate limit)' : ''));
-    }
+    if (scan.base_since_id) url.searchParams.set('since_id', scan.base_since_id);
+    if (scan.next_token) url.searchParams.set('pagination_token', scan.next_token);
+    const response = await request(url);
     const parsed = await response.json();
-    posts.push(...(parsed.data || []));
-    nextToken = parsed.meta?.next_token;
-    if (!nextToken) break;
-  }
-  // Fail closed if rate limit/volume exceeds our safe scan window.
-  if (nextToken && state.initialized) throw new Error('Too many mentions for scan window; no cursor advanced');
-  const newest = newestId(posts.map(p => p.id));
-  if (!state.initialized) {
-    // First request establishes a baseline: never reply to older mentions.
-    if (newest) state.since_id = newest;
-    state.initialized = true;
+    if (!parsed || typeof parsed !== 'object' || (parsed.data !== undefined && !Array.isArray(parsed.data)) ||
+        (parsed.meta !== undefined && (typeof parsed.meta !== 'object' || parsed.meta === null)))
+      throw new Error('Invalid X mentions response; cursor not advanced');
+    const posts = parsed.data || [];
+    const next = parsed.meta?.next_token || null;
+    if (next !== null && (typeof next !== 'string' || next.length > 4096))
+      throw new Error('Invalid X pagination token; cursor not advanced');
+    const newest = newestId(posts.map(p => p?.id));
+    const found = new Set(state.pending.map(p => p.post_id));
+    const fresh = [];
+    if (state.initialized) {
+      for (const post of posts) {
+        const item = classifyMention(post, s.handle, s.userId);
+        if (item && !found.has(item.post_id)) { fresh.push(item); found.add(item.post_id); }
+      }
+      if (state.pending.length + fresh.length > maxStateItems)
+        throw new Error('X review queue capacity exceeded; no cursor advanced');
+    }
+    if (newest && (!scan.highest_id || BigInt(newest) > BigInt(scan.highest_id)))
+      scan.highest_id = newest;
+    state.pending.unshift(...fresh.reverse());
+    scan.next_token = next;
+    scan.scanned += posts.length;
+    scanned += posts.length; added += fresh.length; pages++;
     state.last_checked = new Date().toISOString();
     state.last_error = null;
+    // First-run baseline deliberately ignores historical mentions, one page is sufficient.
+    if (!state.initialized || !next) {
+      if (scan.highest_id && (!state.since_id || BigInt(scan.highest_id) > BigInt(state.since_id)))
+        state.since_id = scan.highest_id;
+      const initialized = !state.initialized;
+      state.initialized = true;
+      state.scan = null;
+      await persist(file, state);
+      return { initialized, scanned, added, pages, partial: false,
+        daily_reads_used: state.budget.used, daily_reads_limit: maxReads };
+    }
+    // Preserve the continuation token and all pending results atomically on /data.
     await persist(file, state);
-    return { initialized: true, scanned: posts.length, added: 0 };
   }
-  const found = new Set(state.pending.map(p => p.post_id));
-  let added = 0;
-  for (const post of posts.reverse()) {
-    const p = classifyMention(post, s.handle, s.userId);
-    if (!p || found.has(p.post_id)) continue;
-    state.pending.unshift(p); found.add(p.post_id); added++;
-  }
-  state.pending = state.pending.slice(0, maxStateItems);
-  if (newest && (!state.since_id || BigInt(newest) > BigInt(state.since_id))) state.since_id = newest;
-  state.last_checked = new Date().toISOString();
-  state.last_error = null;
-  await persist(file, state);
-  return { initialized: false, scanned: posts.length, added };
+  return { initialized: false, scanned, added, pages, partial: true,
+    daily_reads_used: state.budget.used, daily_reads_limit: maxReads };
 }
 export async function start(env = process.env) {
   const s = settings(env);
@@ -176,7 +247,8 @@ export async function start(env = process.env) {
       res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
-        credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked });
+        credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked, scan_in_progress: !!state.scan,
+        daily_reads_used: state.budget?.used || 0, daily_reads_limit: s.maxReadsPerDay });
       return;
     }
     // OAuth and lobbies are independent of the X mention polling schedule.
@@ -215,7 +287,10 @@ export async function start(env = process.env) {
     }
     if (req.method === 'GET' && url.pathname === '/admin/mentions') {
       send(200, { handle: s.handle, since_id: state.since_id, initialized: state.initialized,
-        last_checked: state.last_checked, last_error: state.last_error, pending: state.pending }); return;
+        last_checked: state.last_checked, last_error: state.last_error, pending: state.pending,
+        scan_in_progress: !!state.scan, daily_reads_used: state.budget?.used || 0,
+        daily_reads_limit: s.maxReadsPerDay, pause_until: state.pause_until,
+        blocked_reason: state.blocked_reason }); return;
     }
     if (req.method === 'POST' && url.pathname === '/admin/poll') {
       const result = await doPoll(); send(result.error ? 503 : 200, result); return;
