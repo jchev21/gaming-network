@@ -30,9 +30,16 @@ async function probe(name, base, route, validate) {
 const http200 = (r) => r.status === 200 ? '' : 'Expected HTTP 200';
 const html = (r,b) => r.status !== 200 ? 'Expected HTTP 200' : (!b.includes('Gaming Network') ? 'Page missing Gaming Network title' : '');
 const json = (body) => { try { return JSON.parse(body); } catch { return null; } };
-for (const route of ['/', '/welcome', '/games', '/live-games', '/discord', '/activity', '/high-scores']) {
+for (const route of ['/', '/welcome', '/onboarding', '/games', '/live-games', '/discord', '/activity', '/high-scores']) {
   await probe('Website ' + route, WEB, route, html);
 }
+await probe('Live onboarding page explains separate Discord/X verification', WEB, '/onboarding', (r,b) => {
+  if (r.status !== 200) return 'Onboarding page not HTTP 200';
+  if (!/get started/i.test(b) || !/X Verified role/i.test(b)) return 'Onboarding guidance not in rendered HTML';
+  if (!/Rules Screening/i.test(b)) return 'Native rules acceptance instructions not visible';
+  if (/discord\.gg\/gamingnetwork/i.test(b)) return 'Unverified Discord invitation URL leaked into live UI';
+  return '';
+});
 await probe('Public X readiness gateway', WEB, '/api/x-status', (r,b) => {
   if (![200,503].includes(r.status)) return 'Gateway unavailable (not a supported readiness HTTP status)';
   const j=json(b);
