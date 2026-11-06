@@ -5,14 +5,25 @@ import path from 'node:path';
 const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 const rnd = () => crypto.randomBytes(32).toString('base64url');
 const cookie = (req,k) => {
- const part=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
- return part ? decodeURIComponent(part.slice(k.length+1)) : null;
+ // Malformed percent escapes are untrusted input, not an authentication exception.
+ const header=String(req.headers.cookie||'');
+ if(header.length>8192)return null;
+ const part=header.split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
+ if(!part)return null;
+ const encoded=part.slice(k.length+1);
+ if(encoded.length>256)return null;
+ try{return decodeURIComponent(encoded)}catch{return null}
 };
 const send=(res,status,obj,headers={})=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',...headers});res.end(JSON.stringify(obj))};
 const setCookie=(key,val,age)=>key+'='+encodeURIComponent(val)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+age;
 const safeReturn=next=>{
  const s=String(next||'/setup');
- return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s)&&!s.startsWith('//')&&!s.includes('\\')?s.slice(0,300):'/setup';
+ // Reject control characters in OAuth return targets, including CRLF in query strings.
+ // Node refuses control characters in Location headers; without this check a
+ // crafted next= value could consume a valid flow then fail its final redirect.
+ return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s) &&
+   !s.startsWith('//') && !s.includes('\\') && !/[\u0000-\u001f\u007f]/.test(s)
+   ? s.slice(0,300) : '/setup';
 };
 export function createPKCE(){
  const verifier=rnd();
