@@ -12,6 +12,7 @@ SCHEMA_VERSION = "1.0.0"
 ALLOWED_OPS = frozenset({
     "create_category",
     "create_text_channel",
+    "create_stage_channel",
     "rename_channel",
     "update_topic",
     "move_channel",
@@ -182,6 +183,15 @@ def parse_proposal(raw: Any) -> ChangeProposal:
                 raise ProposalError(f"operations[{i}] create_text_channel needs valid discord channel name")
             if channel_id is not None:
                 raise ProposalError(f"operations[{i}] create_text_channel must not set channel_id")
+        elif op == "create_stage_channel":
+            if not name or not _CHANNEL_NAME_RE.match(name):
+                raise ProposalError(f"operations[{i}] create_stage_channel needs valid name")
+            if channel_id is not None:
+                raise ProposalError(f"operations[{i}] create_stage_channel cannot specify channel_id")
+            if parent_category_id is None:
+                raise ProposalError(f"operations[{i}] stage requires a known parent_category_id")
+            if content is not None or topic is not None:
+                raise ProposalError(f"operations[{i}] stage cannot contain a message or topic")
         elif op == "rename_channel":
             if channel_id is None:
                 raise ProposalError(f"operations[{i}] rename_channel requires channel_id")
