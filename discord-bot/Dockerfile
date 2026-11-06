@@ -11,6 +11,6 @@ COPY discord_bot_change_bridge /app/discord_bot_change_bridge
 COPY tests /app/tests
 # Offline unit tests (no Discord token, no live guild)
 RUN python -m unittest test_xyz_brand_icons \
- && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard -v \
+ && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions -v \
  && python -c "import ast; ast.parse(open('bot.py').read()); print('bot.py parse ok')"
 CMD ["python", "-u", "bot.py"]
