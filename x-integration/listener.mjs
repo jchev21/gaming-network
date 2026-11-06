@@ -201,7 +201,8 @@ export async function pollX(s, state, file) {
     }
     if (newest && (!scan.highest_id || BigInt(newest) > BigInt(scan.highest_id)))
       scan.highest_id = newest;
-    state.pending.unshift(...fresh.reverse());
+    state.pending.push(...fresh);
+    state.pending.sort((a,b) => BigInt(a.post_id) > BigInt(b.post_id) ? -1 : BigInt(a.post_id) < BigInt(b.post_id) ? 1 : 0);
     scan.next_token = next;
     scan.scanned += posts.length;
     scanned += posts.length; added += fresh.length; pages++;
