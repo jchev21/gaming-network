@@ -39,6 +39,20 @@ test('validated JSON roundtrip', () => {
   const s = C.snapshot(C.sign(allPassed()));
   assert.deepEqual(C.parse(JSON.stringify(s)), s);
 });
+test('imported signed JSON can never arrive READY without renewed human approval', () => {
+  const signed = C.snapshot(C.sign(allPassed()));
+  assert.equal(C.ready(signed), true);
+  const imported = C.importRecord(JSON.stringify(signed));
+  assert.equal(C.ready(imported), false);
+  assert.equal(imported.acknowledged, false);
+  assert.equal(imported.signoffAt, null);
+  assert.equal(imported.owner, 'Test owner');
+  assert.equal(C.counts(imported).pass, 20);
+  assert.equal(C.ready(C.sign(imported)), true);
+  const app = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+  assert.match(app, /C\.importRecord\(await file\.text\(\)\)/);
+  assert.ok(!app.includes('C.parse(await file.text())'));
+});
 test('malformed imports rejected', () => {
   const mutations = [
     s => s.schemaVersion = 9,
