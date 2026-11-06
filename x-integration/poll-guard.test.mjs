@@ -149,4 +149,38 @@ await withTemp(async file => {
   assert.equal(calls,0);
 });
 
+await withTemp(async file => {
+  const state=makeState();
+  const observed=[];
+  await capture(async (url) => {
+    const u=new URL(url);
+    observed.push(u.searchParams.get('max_results'));
+    return response([mention(302)],null);
+  },async()=>{
+    const result=await pollX(config({once:false,maxResultsPerPage:5,maxPagesPerPoll:1}),state,file);
+    assert.equal(result.partial,false);
+    assert.equal(result.added,1);
+    assert.equal(result.daily_reads_used,1);
+  });
+  assert.deepEqual(observed,['5'],'Paid recurring reads must request at most five posts by default');
+});
+await withTemp(async file => {
+  const state=makeState();
+  const before=state.since_id;
+  let called=0;
+  await capture(async (url)=>{
+    called++;
+    assert.equal(new URL(url).searchParams.get('max_results'),'5');
+    return response([mention(201),mention(202),mention(203),mention(204),mention(205),mention(206)],null);
+  },async()=>{
+    await assert.rejects(
+      pollX(config({once:false,maxResultsPerPage:5,maxPagesPerPoll:1}),state,file),
+      /oversized mentions page/
+    );
+  });
+  assert.equal(called,1);
+  assert.equal(state.since_id,before);
+  assert.equal((await persisted(file)).budget.used,1);
+});
+
 console.log('X poll guard tests passed: restart-safe pages, high-water, cost cap, 402, 429, baseline and queue safety');

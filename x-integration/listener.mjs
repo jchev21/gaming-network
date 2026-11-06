@@ -61,6 +61,8 @@ function cappedInt(raw, defaultValue, max, label) {
 }
 function settings(env = process.env) {
   const interval = Number(env.X_POLL_SECONDS || 120);
+  const requestedPageSize = cappedInt(env.X_POLL_MAX_RESULTS, 5, 20, 'X_POLL_MAX_RESULTS');
+  if (requestedPageSize < 5) throw new Error('X_POLL_MAX_RESULTS must be 5–20');
   return {
     handle: env.X_HANDLE || 'jordan__chev',
     userId: env.X_USER_ID || '',
@@ -71,6 +73,7 @@ function settings(env = process.env) {
     pollSeconds: Number.isFinite(interval) ? Math.min(3600, Math.max(90, interval)) : 120,
     maxReadsPerDay: cappedInt(env.X_MAX_READS_PER_DAY, 8, 40, 'X_MAX_READS_PER_DAY'),
     maxPagesPerPoll: cappedInt(env.X_MAX_PAGES_PER_POLL, 2, 5, 'X_MAX_PAGES_PER_POLL'),
+    maxResultsPerPage: requestedPageSize,
     dataDir: env.DATA_DIR || './runtime',
     port: Number(env.PORT || 8080),
   };
@@ -175,7 +178,7 @@ export async function pollX(s, state, file) {
   for (let page = 0; page < pagesPerPoll; page++) {
     const scan = state.scan;
     const url = new URL('https://api.x.com/2/users/' + s.userId + '/mentions');
-    url.searchParams.set('max_results', s.once ? '5' : '100');
+    url.searchParams.set('max_results', String(s.once ? 5 : Math.max(5, Math.min(20, s.maxResultsPerPage || 5))));
     url.searchParams.set('tweet.fields', 'author_id,created_at,entities');
     if (scan.base_since_id) url.searchParams.set('since_id', scan.base_since_id);
     if (scan.next_token) url.searchParams.set('pagination_token', scan.next_token);
@@ -185,6 +188,8 @@ export async function pollX(s, state, file) {
         (parsed.meta !== undefined && (typeof parsed.meta !== 'object' || parsed.meta === null)))
       throw new Error('Invalid X mentions response; cursor not advanced');
     const posts = parsed.data || [];
+    const pageCap = s.once ? 5 : Math.max(5, Math.min(20, s.maxResultsPerPage || 5));
+    if (posts.length > pageCap) throw new Error('X returned an oversized mentions page; cursor not advanced');
     const next = parsed.meta?.next_token || null;
     if (next !== null && (typeof next !== 'string' || next.length > 4096))
       throw new Error('Invalid X pagination token; cursor not advanced');
