@@ -1,0 +1,31 @@
+name: Friends and Family Read-Only Public Launch Smoke
+on:
+  push:
+    branches:
+      - review/friends-family-launch-smoke-1105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-live-public-surface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify smoke test syntax
+        run: node --check tools/friends-family-readonly-smoke.mjs
+      - name: Check Railway public HTTPS without sign-in, posts, or private calls
+        run: node tools/friends-family-readonly-smoke.mjs
+      - name: Upload redacted checks regardless of result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: friends-family-readonly-preflight
+          path: /tmp/gn-friends-family-smoke.json
+          retention-days: 7
+          if-no-files-found: warn
