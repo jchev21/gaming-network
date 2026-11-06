@@ -195,5 +195,35 @@ def _diff_one(op: Operation, ch: dict, cat: dict, inv: GuildInventory) -> DiffLi
                         summary=f"Move #{cur.name} → category {dest.name!r} ({dest.id})", risk="medium",
                         before={"channel_id": cur.id, "category_id": cur.category_id},
                         after={"channel_id": cur.id, "category_id": dest.id})
+    if op.op == "publish_message":
+        cid = op.channel_id
+        if cid not in ch:
+            return DiffLine(
+                op_id=op.op_id, op=op.op, summary=f"Publish to channel {cid}",
+                risk="high", blocked=True, block_reason="channel_id not in inventory",
+            )
+        if cid in inv.protected_channel_ids:
+            return DiffLine(
+                op_id=op.op_id, op=op.op, summary=f"Publish to channel {cid}",
+                risk="high", blocked=True, block_reason="channel is protected",
+            )
+        cur = ch[cid]
+        if cur.private:
+            return DiffLine(
+                op_id=op.op_id, op=op.op, summary=f"Publish in #{cur.name}",
+                risk="high", blocked=True, block_reason="channel is private; refuse publish",
+            )
+        if cur.type != "text":
+            return DiffLine(
+                op_id=op.op_id, op=op.op, summary=f"Publish in #{cur.name}",
+                risk="high", blocked=True, block_reason="destination is not a text channel",
+            )
+        return DiffLine(
+            op_id=op.op_id, op=op.op, summary=f"Publish announcement in #{cur.name}",
+            risk="medium",
+            before={"channel_id": cur.id},
+            after={"channel_id": cur.id, "content_length": len(op.content or ""),
+                   "embed": bool(op.embed_title or op.embed_description)},
+        )
     return DiffLine(op_id=op.op_id, op=op.op, summary="unknown op", risk="high",
                     blocked=True, block_reason="unsupported op")
