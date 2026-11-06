@@ -53,11 +53,12 @@ def _bits_for(overwrites, everyone_id):
 
 
 def _effective_bool(allow, deny, bit):
+    """Report explicit @everyone overwrite only; absent bit is unknown."""
     if deny & bit:
         return False
     if allow & bit:
         return True
-    return False
+    return None
 
 
 def _triple(allow, deny):
@@ -86,14 +87,16 @@ def effective_member_visibility(snapshot: GuildSnapshot) -> VisibilityReport:
         if ch_bits is not None:
             ch_view, ch_send, ch_connect = _triple(*ch_bits)
 
+        # Resolve each bit separately: channel SEND cannot erase category VIEW.
+        # Guild base and non-@everyone role access are not inferred here.
+        view = ch_view if ch_view is not None else cat_view
+        send = ch_send if ch_send is not None else cat_send
+        connect = ch_connect if ch_connect is not None else cat_connect
         if ch_bits is not None:
-            view, send, connect = ch_view, ch_send, ch_connect
             source = "channel_overwrite"
-        elif cat_view is not None or cat_send is not None or cat_connect is not None:
-            view, send, connect = cat_view, cat_send, cat_connect
+        elif any(bit is not None for bit in (cat_view, cat_send, cat_connect)):
             source = "category_overwrite"
         else:
-            view = send = connect = None
             source = "unknown_default_deny_closed"
 
         rows.append(

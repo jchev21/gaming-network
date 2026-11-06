@@ -131,7 +131,7 @@ class BuildPlanTests(unittest.TestCase):
             "guild_id": 1566290427366080612,
             "categories": [{"id": 50, "name": "START HERE"}],
             "channels": [
-                {"id": 501, "name": "welcome", "type": "text", "category_id": 50},
+                {"id": 501, "name": "welcome", "type": "text", "category_id": 50, "overwrites": [{"id": 1566290427366080612, "type": "role", "allow": VIEW, "deny": 0}]},
                 {"id": 502, "name": "rules", "type": "text", "category_id": 50},
             ],
         })

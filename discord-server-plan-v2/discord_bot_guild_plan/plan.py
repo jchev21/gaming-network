@@ -91,13 +91,16 @@ def assert_one_voice_per_public_category(public_names: tuple[str, ...] | None = 
 
 
 def is_private_channel_record(meta, visibility_row, blocklist: set[str]) -> bool:
-    if meta is None:
-        return False
-    if meta.name.lower() in blocklist:
+    """Refuse public reuse without affirmative @everyone VIEW evidence.
+
+    This is a candidate filter, not full Discord role/permission verification.
+    Missing and unknown visibility must not be treated as public.
+    """
+    if meta is None or visibility_row is None:
         return True
-    if visibility_row is not None and visibility_row.view is False:
+    if meta.name.casefold() in {name.casefold() for name in blocklist}:
         return True
-    return False
+    return visibility_row.view is not True
 
 
 @dataclass
@@ -202,7 +205,18 @@ def build_plan(snapshot: GuildSnapshot, config: PlanConfig) -> PlanResult:
                         None,
                     )
                 block = {b.lower() for b in config.private_name_blocklist}
-                if is_private_channel_record(meta, vis_row, block):
+                wrong_type = meta is not None and meta.type != ctype
+                wrong_category = meta is not None and (
+                    cat_id is None or meta.category_id != cat_id
+                )
+                if is_private_channel_record(meta, vis_row, block) or wrong_type or wrong_category:
+                    reasons = []
+                    if is_private_channel_record(meta, vis_row, block):
+                        reasons.append("@everyone visibility missing, denied or blocklisted")
+                    if wrong_type:
+                        reasons.append(f"type mismatch: expected {ctype}")
+                    if wrong_category:
+                        reasons.append("category mismatch or unresolved category id")
                     result.actions.append(
                         PlanAction(
                             op="reject_private_reuse",
@@ -211,10 +225,7 @@ def build_plan(snapshot: GuildSnapshot, config: PlanConfig) -> PlanResult:
                             channel_id=resolved_id,
                             category_id=cat_id,
                             channel_type=ctype,
-                            detail=(
-                                f"Refuse reuse of id={resolved_id} "
-                                f"(private/hidden from @everyone or blocklisted name)"
-                            ),
+                            detail=f"Refuse reuse of id={resolved_id} ({'; '.join(reasons)})",
                             risk="high",
                         )
                     )
