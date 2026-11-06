@@ -1,4 +1,4 @@
-"""Async apply path for DiscordGuildMutator (Batch A)."""
+"""Async apply path for DiscordGuildMutator (Batch A/B)."""
 from __future__ import annotations
 
 import time
@@ -83,4 +83,8 @@ async def _apply_one_async(op: Operation, mutator: Any):
     if op.op == "move_channel":
         await mutator.move_channel_async(op.channel_id or 0, op.parent_category_id or 0)
         return None
+    if op.op == "publish_message":
+        return await mutator.publish_message_async(
+            op.channel_id or 0, op.content, op.embed_title, op.embed_description, op.embed_color
+        )
     raise RuntimeError(f"refusing unsupported op {op.op}")
