@@ -1,13 +1,9 @@
 <!DOCTYPE html>
-
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, 
-initial-scale=1">
-<title>Gaming Network</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaming Network Hub · Discord Activity</title>
 <style>
 :root {
   --bg: #101112;
@@ -15,390 +11,410 @@ initial-scale=1">
   --line: #303337;
   --gold: #c8a45d;
   --white: #f4f4f4;
-  --muted: #999;
+  --muted: #9ca1a6;
+  --ok: #8fc79b;
+  --warn: #e0b35a;
+  --err: #e07a7a;
 }
-
 * { box-sizing: border-box; }
-
 body {
   margin: 0;
   background: var(--bg);
   color: var(--white);
-  font: 15px Arial, sans-serif;
+  font: 15px/1.5 system-ui, Arial, sans-serif;
 }
-
 header {
-  padding: 24px 5%;
+  padding: 16px 5%;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 12px;
 }
-
-.logo {
-  font-size: 23px;
-  font-weight: bold;
-  letter-spacing: 2px;
-}
-
+.logo { font-size: 20px; font-weight: 700; letter-spacing: 1.5px; }
 .logo span { color: var(--gold); }
-
-nav {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-button {
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+button, .btn {
   cursor: pointer;
   background: #222528;
-  color: white;
+  color: var(--white);
   border: 1px solid var(--line);
-  padding: 11px 16px;
+  padding: 10px 14px;
   border-radius: 7px;
+  font: inherit;
 }
-
-button:hover, button.active {
+button:hover, button.active, .btn:hover {
   border-color: var(--gold);
   color: var(--gold);
 }
-
-main {
-  max-width: 1100px;
-  margin: auto;
-  padding: 30px 20px;
-}
-
-h1 { font-size: 32px; margin: 0 0 10px; }
-h2 { font-size: 22px; }
-p { color: var(--muted); line-height: 1.6; }
-
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 28px; margin: 0 0 8px; }
+h2 { font-size: 18px; margin: 0 0 8px; }
+p { color: var(--muted); margin: 0 0 12px; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 24px;
-  margin: 20px 0;
+  padding: 16px;
+  margin: 12px 0;
 }
-
 .gold { color: var(--gold); }
-
 .profile {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
-
-.profile img {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: none;
+#connection-badge {
+  display: inline-block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #151718;
 }
-
+#connection-badge[data-state="authorized"],
+#connection-badge[data-state="ready"] { color: var(--ok); border-color: var(--ok); }
+#connection-badge[data-state="browser"],
+#connection-badge[data-state="connecting"] { color: var(--warn); border-color: var(--warn); }
+#connection-badge[data-state="error"] { color: var(--err); border-color: var(--err); }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
-
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 20px;
+  padding: 16px;
 }
-
-.game {
-  font-size: 32px;
-  padding: 18px;
-  text-align: center;
+.hidden { display: none !important; }
+.feed-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-
+.feed-bar button.active {
+  background: #2a2e32;
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.stage {
+  min-height: 220px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  background: #141617;
+}
+.layout-controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 16px; }
+.layout-1 .stage-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.layout-2 .stage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) {
+  .layout-2 .stage-grid { grid-template-columns: 1fr; }
+}
+.feed-item {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-meta { font-size: 12px; color: var(--muted); }
+#board {
+  display: grid;
+  grid-template-columns: repeat(3, 72px);
+  gap: 6px;
+  margin: 12px 0;
+}
+.cell {
+  height: 72px;
+  font-size: 28px;
+  background: #202326;
+}
+#dice { font-size: 48px; margin: 12px 0; }
 footer {
   text-align: center;
   color: var(--muted);
-  padding: 30px;
+  padding: 24px;
   border-top: 1px solid var(--line);
+  font-size: 13px;
 }
-
-.hidden { display: none; }
+.privacy-note {
+  font-size: 12px;
+  color: var(--muted);
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+  margin-top: 8px;
+}
 </style>
 </head>
-
 <body>
-
 <header>
   <div class="logo">GAMING <span>NETWORK</span></div>
-
-  <nav>
-    <button class="active" 
-onclick="showPage('home',this)">Home</button>
-    <button onclick="showPage('poker',this)">Poker Lobby</button>
-    <button onclick="showPage('games',this)">Games</button>
-    <button onclick="showPage('events',this)">Events</button>
+  <nav aria-label="Primary">
+    <button type="button" class="active" data-page="hub" id="nav-hub">Hub</button>
+    <button type="button" data-page="games" id="nav-games">Games</button>
+    <button type="button" data-page="events" id="nav-events">Events</button>
   </nav>
 </header>
 
 <main>
-
-<div class="profile panel">
-  <img id="discord-avatar" alt="Discord Avatar">
-  <div>
-    <strong id="discord-username">Gaming Network Member</strong>
-    <p id="discord-status">Open inside Discord to connect</p>
-  </div>
-</div>
-
-<section id="home">
-  <h1>Welcome to <span class="gold">Gaming Network</span></h1>
-  <p>Your community. Your games. Your network.</p>
-
-  <div class="panel">
-    <h2>Gaming Network Hub</h2>
-    <p>Connect with friends, explore games, and join upcoming 
-events.</p>
+  <div class="profile panel" aria-live="polite">
+    <div>
+      <strong id="discord-username">Gaming Network Member</strong>
+      <p id="discord-status" style="margin:4px 0 0">Initializing…</p>
+    </div>
+    <span id="connection-badge" data-state="idle">Idle</span>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>♠ Poker Lobby</h2>
-      <p>Multiplayer poker coming soon.</p>
-      <button onclick="showPage('poker')">Enter Lobby</button>
+  <section id="page-hub">
+    <h1>Hub <span class="gold">Activity</span></h1>
+    <p>Selectable public feeds above the stage. Private Discord channel messages are never loaded here.</p>
+
+    <div class="layout-controls" role="group" aria-label="Layout">
+      <button type="button" id="layout-1" class="active">1 pane</button>
+      <button type="button" id="layout-2">2 panes</button>
+      <button type="button" id="btn-refresh">Refresh feed</button>
     </div>
 
-    <div class="card">
-      <h2>🎮 Casual Games</h2>
-      <p>Play quick games with your friends.</p>
-      <button onclick="showPage('games')">Play Games</button>
+    <div class="feed-bar" role="tablist" aria-label="Feed source">
+      <button type="button" role="tab" class="active" data-feed="welcome" id="feed-welcome">Welcome</button>
+      <button type="button" role="tab" data-feed="public-x" id="feed-public-x">Public X games</button>
+      <button type="button" role="tab" data-feed="calendar" id="feed-calendar">Calendar</button>
+      <button type="button" role="tab" data-feed="local" id="feed-local">Local activity</button>
     </div>
 
-    <div class="card">
-      <h2>🏆 Events</h2>
-      <p>Community tournaments and events.</p>
-      <button onclick="showPage('events')">View Events</button>
+    <div id="hub-stage" class="layout-1">
+      <div class="stage-grid">
+        <div class="stage" id="stage-primary" aria-live="polite"></div>
+        <div class="stage hidden" id="stage-secondary" aria-live="polite"></div>
+      </div>
     </div>
-  </div>
-</section>
+    <p class="privacy-note">Privacy: this Activity does not read private Discord channels or show redemption codes. Public/sample content only.</p>
+  </section>
 
-<section id="poker" class="hidden">
-  <h1>Poker <span class="gold">Lobby</span></h1>
-  <div class="panel">
-    <h2>Coming Soon</h2>
-    <p>Multiplayer poker tables and tournaments will appear 
-here.</p>
-  </div>
-</section>
-
-<section id="games" class="hidden">
-  <h1>Casual <span class="gold">Games</span></h1>
-
-  <div class="grid">
-    <div class="card">
-      <h2>Tic-Tac-Toe</h2>
-      <div id="board" class="game">⬜ ⬜ ⬜<br>⬜ ⬜ ⬜<br>⬜ ⬜ 
-⬜</div>
-      <button onclick="resetGame()">Reset</button>
-      <p id="game-status">Local game</p>
+  <section id="page-games" class="hidden">
+    <h1>Casual <span class="gold">Games</span></h1>
+    <div class="grid">
+      <div class="card">
+        <h2>Tic-Tac-Toe</h2>
+        <p id="game-status">X's turn</p>
+        <div id="board"></div>
+        <button type="button" id="btn-reset-ttt">Reset</button>
+      </div>
+      <div class="card">
+        <h2>Dice Roller</h2>
+        <div id="dice">⚄</div>
+        <button type="button" id="btn-roll">Roll Dice</button>
+      </div>
     </div>
+  </section>
 
-    <div class="card">
-      <h2>Dice Roller</h2>
-      <div id="dice" class="game">🎲</div>
-      <button onclick="rollDice()">Roll Dice</button>
+  <section id="page-events" class="hidden">
+    <h1>Events</h1>
+    <div class="panel">
+      <h2>Upcoming</h2>
+      <p>Community events will appear here when published. No private codes in public feeds.</p>
+      <ul id="events-list"></ul>
     </div>
-  </div>
-</section>
-
-<section id="events" class="hidden">
-  <h1>Community <span class="gold">Events</span></h1>
-  <div class="panel">
-    <h2>Upcoming Events</h2>
-    <p>Events and tournaments will be announced here.</p>
-  </div>
-</section>
-
+  </section>
 </main>
 
-<footer>
-  GAMING NETWORK · COMMUNITY · GAMES · EVENTS
-</footer>
+<footer>GAMING NETWORK · Discord Activity · Public feeds only</footer>
 
 <script>
-function showPage(page,button) {
-  document.querySelectorAll("main section").forEach(section=>{
-    section.classList.add("hidden");
+(function () {
+  "use strict";
+
+  const pages = {
+    hub: document.getElementById("page-hub"),
+    games: document.getElementById("page-games"),
+    events: document.getElementById("page-events"),
+  };
+
+  function showPage(name) {
+    Object.entries(pages).forEach(([key, el]) => {
+      if (!el) return;
+      el.classList.toggle("hidden", key !== name);
+    });
+    document.querySelectorAll("nav [data-page]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-page") === name);
+    });
+  }
+
+  document.querySelectorAll("nav [data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => showPage(btn.getAttribute("data-page")));
   });
 
-  document.getElementById(page).classList.remove("hidden");
+  const FEEDS = {
+    welcome: {
+      title: "Welcome",
+      body: [
+        { meta: "System · public", text: "Welcome to Gaming Network Hub inside Discord Activity." },
+        { meta: "System · public", text: "Use the feed buttons above to switch sources. Layout controls change the stage." },
+        { meta: "Privacy", text: "Private channel messages and redemption codes are never shown in this Activity." },
+      ],
+    },
+    "public-x": {
+      title: "Public X games",
+      body: [
+        { meta: "Sample · not live API", text: "Public lobby previews appear here when the public feed is connected." },
+        { meta: "Sample", text: "Secret join codes stay off public surfaces — winners receive them privately." },
+      ],
+    },
+    calendar: {
+      title: "Calendar",
+      body: [
+        { meta: "Sample", text: "No live events loaded in this shell. Calendar items will list here when published." },
+      ],
+    },
+    local: {
+      title: "Local activity",
+      body: [
+        { meta: "This session", text: "Connection state and layout choices stay in this Activity instance only." },
+        { meta: "Tip", text: "Open Games for tic-tac-toe and dice — fully interactive without Discord permissions." },
+      ],
+    },
+  };
 
-  document.querySelectorAll("nav button").forEach(btn=>{
-    btn.classList.remove("active");
+  let activeFeed = "welcome";
+  let layout = 1;
+
+  function renderFeed(target, feedKey) {
+    const feed = FEEDS[feedKey] || FEEDS.welcome;
+    const items = feed.body
+      .map(
+        (row) =>
+          `<div class="feed-item"><div class="feed-meta">${escapeHtml(row.meta)}</div><div>${escapeHtml(row.text)}</div></div>`,
+      )
+      .join("");
+    target.innerHTML = `<h2>${escapeHtml(feed.title)}</h2>${items}`;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&")
+      .replace(/</g, "<")
+      .replace(/>/g, ">")
+      .replace(/"/g, """);
+  }
+
+  function applyLayout() {
+    const stage = document.getElementById("hub-stage");
+    const secondary = document.getElementById("stage-secondary");
+    stage.classList.toggle("layout-1", layout === 1);
+    stage.classList.toggle("layout-2", layout === 2);
+    secondary.classList.toggle("hidden", layout !== 2);
+    document.getElementById("layout-1").classList.toggle("active", layout === 1);
+    document.getElementById("layout-2").classList.toggle("active", layout === 2);
+    if (layout === 2) {
+      renderFeed(document.getElementById("stage-secondary"), "local");
+    }
+  }
+
+  function selectFeed(key) {
+    activeFeed = key;
+    document.querySelectorAll(".feed-bar [data-feed]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-feed") === key);
+    });
+    renderFeed(document.getElementById("stage-primary"), key);
+  }
+
+  document.querySelectorAll(".feed-bar [data-feed]").forEach((btn) => {
+    btn.addEventListener("click", () => selectFeed(btn.getAttribute("data-feed")));
+  });
+  document.getElementById("layout-1").addEventListener("click", () => {
+    layout = 1;
+    applyLayout();
+  });
+  document.getElementById("layout-2").addEventListener("click", () => {
+    layout = 2;
+    applyLayout();
+  });
+  document.getElementById("btn-refresh").addEventListener("click", () => {
+    selectFeed(activeFeed);
+    const status = document.getElementById("discord-status");
+    if (status) {
+      const prev = status.textContent;
+      status.textContent = "Feed refreshed (public/sample only)";
+      setTimeout(() => {
+        if (status.textContent === "Feed refreshed (public/sample only)") status.textContent = prev;
+      }, 1500);
+    }
   });
 
-  if(button) button.classList.add("active");
-}
+  selectFeed("welcome");
+  applyLayout();
 
-let cells = Array(9).fill("");
-let turn = "X";
+  let cells = Array(9).fill("");
+  let turn = "X";
+  let over = false;
 
-function drawBoard() {
-  document.getElementById("board").innerHTML =
-    cells.map((cell,i)=>
-      `<button onclick="playCell(${i})">${cell || "⬜"}</button>`
-    ).join("");
-}
+  function drawBoard() {
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+    cells.forEach((v, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cell";
+      b.textContent = v || "";
+      b.addEventListener("click", () => playCell(i));
+      board.appendChild(b);
+    });
+    document.getElementById("game-status").textContent = over ? "Game over" : turn + "'s turn";
+  }
 
-function playCell(i) {
-  if(cells[i]) return;
+  function playCell(i) {
+    if (cells[i] || over) return;
+    cells[i] = turn;
+    const wins = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+    if (wins.some((w) => w.every((n) => cells[n] === turn))) {
+      over = true;
+      document.getElementById("game-status").textContent = turn + " wins!";
+    } else if (cells.every(Boolean)) {
+      over = true;
+      document.getElementById("game-status").textContent = "Draw!";
+    } else {
+      turn = turn === "X" ? "O" : "X";
+    }
+    drawBoard();
+  }
 
-  cells[i] = turn;
-  turn = turn === "X" ? "O" : "X";
-
+  document.getElementById("btn-reset-ttt").addEventListener("click", () => {
+    cells = Array(9).fill("");
+    turn = "X";
+    over = false;
+    drawBoard();
+  });
+  document.getElementById("btn-roll").addEventListener("click", () => {
+    const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+    document.getElementById("dice").textContent = faces[Math.floor(Math.random() * 6)];
+  });
   drawBoard();
-  document.getElementById("game-status").textContent =
-    turn + "'s turn";
-}
 
-function resetGame() {
-  cells = Array(9).fill("");
-  turn = "X";
-  drawBoard();
-  document.getElementById("game-status").textContent = "X's 
-turn";
-}
+  document.getElementById("events-list").innerHTML =
+    "<li class=\"feed-item\"><div class=\"feed-meta\">Sample</div>No scheduled events in this Activity shell.</li>";
 
-drawBoard();
-
-function rollDice() {
-  document.getElementById("dice").textContent =
-    "🎲 " + (Math.floor(Math.random()*6)+1);
-}
+  window.__GN_ACTIVITY__ = {
+    showPage,
+    selectFeed,
+    getActiveFeed: () => activeFeed,
+    getLayout: () => layout,
+    setLayout: (n) => {
+      layout = n === 2 ? 2 : 1;
+      applyLayout();
+    },
+  };
+})();
 </script>
-
-<script type="module" src="./activity-sdk.js"></script>
-
-</body>
-</html>
-<!DOCTYPE 
-html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gaming Network</title>
-<style>
-:root{--bg:#101112;--panel:#191b1d;--line:#303337;--gold:#c8a45d;--white:#f4f4f4;--muted:#9ca1a6}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--white);font:15px Arial,sans-serif}
-header{padding:24px 5%;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
-.logo{font-size:23px;font-weight:bold;letter-spacing:2px}
-.logo span{color:var(--gold)}
-nav{display:flex;gap:8px;flex-wrap:wrap}
-button{cursor:pointer;background:#222528;color:white;border:1px solid var(--line);padding:11px 16px;border-radius:6px}
-button:hover,button.active{border-color:var(--gold);color:var(--gold)}
-main{max-width:1100px;margin:auto;padding:30px 20px}
-h1{font-size:32px;margin:0 0 10px}
-h2{font-size:22px}
-p{color:var(--muted);line-height:1.6}
-.gold{color:var(--gold)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:24px 0}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:22px}
-.card h3{margin-top:0}
-.section{display:none}.section.show{display:block}
-.status{color:#8fc79b;font-size:13px}
-#board{display:grid;grid-template-columns:repeat(3,90px);gap:8px;margin:20px 0}
-.cell{height:90px;font-size:32px;background:#202326}
-#dice{font-size:65px;margin:20px}
-footer{border-top:1px solid var(--line);padding:25px;text-align:center;color:var(--muted)}
-</style>
-</head>
-<body>
-<header>
-<div class="logo">GAMING <span>NETWORK</span></div>
-<nav>
-<button class="active" onclick="show('home',this)">Home</button>
-<button onclick="show('poker',this)">Poker Lobby</button>
-<button onclick="show('games',this)">Games</button>
-<button onclick="show('events',this)">Events</button>
-</nav>
-</header>
-
-<main>
-<section id="home" class="section show">
-<h1>Welcome to <span class="gold">Gaming Network</span></h1>
-<p>Your place to play, compete, and connect.</p>
-<div class="grid">
-<div class="card"><h3>Poker Lobby</h3><p>Browse poker tables and prepare for private games.</p><button onclick="show('poker')">Open Lobby</button></div>
-<div class="card"><h3>Casual Games</h3><p>Play simple games right in your browser.</p><button onclick="show('games')">Play Games</button></div>
-<div class="card"><h3>Events</h3><p>Tournaments and community events.</p><button onclick="show('events')">View Events</button></div>
-</div>
-</section>
-
-<section id="poker" class="section">
-<h1>Poker <span class="gold">Lobby</span></h1>
-<p>Table directory and private game hub.</p>
-<div class="grid">
-<div class="card"><h3>Private Hold'em</h3><p>Private table integration placeholder.</p><p class="status">Provider connection needed</p><button onclick="alert('Poker provider/table link will be configured here.')">Join Table</button></div>
-<div class="card"><h3>Create Table</h3><p>Choose a poker provider to host real multiplayer games.</p><button onclick="alert('Table creation will be connected to your poker provider.')">Create Table</button></div>
-<div class="card"><h3>Coming Soon</h3><p>Player rankings, table filters, club rooms, and tournaments.</p></div>
-</div>
-</section>
-
-<section id="games" class="section">
-<h1>Casual <span class="gold">Games</span></h1>
-<div class="grid">
-<div class="card">
-<h3>Tic-Tac-Toe</h3><p id="turn">X's turn</p>
-<div id="board"></div>
-<button onclick="resetTTT()">Restart</button>
-</div>
-<div class="card">
-<h3>Dice Roller</h3><p>Roll a six-sided die.</p>
-<div id="dice">⚄</div>
-<button onclick="rollDice()">Roll Dice</button>
-</div>
-<div class="card"><h3>More Games</h3><p>Connect Four, Checkers, Chess, and more can be added next.</p></div>
-</div>
-</section>
-
-<section id="events" class="section">
-<h1>Events & <span class="gold">Tournaments</span></h1>
-<div class="card"><h3>No events scheduled</h3><p>Community tournaments and event listings will appear here.</p></div>
-</section>
-</main>
-<footer>Gaming Network · Simple. Competitive. Connected.</footer>
-
-<script>
-function show(id,btn){
- document.querySelectorAll('.section').forEach(s=>s.classList.remove('show'));
- document.getElementById(id).classList.add('show');
- document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
- if(btn)btn.classList.add('active');
-}
-let cells=Array(9).fill(''),player='X',over=false;
-function draw(){
- const board=document.getElementById('board');board.innerHTML='';
- cells.forEach((v,i)=>{let b=document.createElement('button');b.className='cell';b.textContent=v;b.onclick=()=>move(i);board.appendChild(b)});
- document.getElementById('turn').textContent=over?'Game over':player+"'s turn";
-}
-function move(i){
- if(cells[i]||over)return;cells[i]=player;
- let wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
- if(wins.some(w=>w.every(n=>cells[n]===player))){over=true;document.getElementById('turn').textContent=player+' wins!';}
- else if(cells.every(Boolean)){over=true;document.getElementById('turn').textContent='Draw!';}
- else player=player==='X'?'O':'X';draw();
-}
-function resetTTT(){cells=Array(9).fill('');player='X';over=false;draw()}
-function rollDice(){document.getElementById('dice').textContent=['⚀','⚁','⚂','⚃','⚄','⚅'][Math.floor(Math.random()*6)]}
-draw();
-</script>
-
-
-
-<div id="discord-status" style="color:#d4af37;text-align:center;padding:8px">Opening Gaming Network...</div>
 <script type="module" src="./activity-sdk.js"></script>
 </body>
 </html>
