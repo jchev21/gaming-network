@@ -107,6 +107,21 @@ async def setup_hook():
 async def on_ready():
     print(f"Hub connected as {bot.user} | guild={config.get('hub_guild_id')}")
     print("Servers the bot can see:", ", ".join(f"{g.name} ({g.id})" for g in bot.guilds) or "none")
+    # One-way read-only inventory audit for owner-controlled channel overhaul.
+    # Logs only @everyone-visible names/IDs, never private channels or messages.
+    try:
+        from discord_bot_change_bridge.preflight import make_public_preflight
+        target_guild = bot.get_guild(1566290427366080612)
+        if target_guild is None:
+            print("DISCORD_CHANGE_BRIDGE_PREFLIGHT target guild not connected; no actions taken")
+        else:
+            preflight = make_public_preflight(
+                target_guild, bot_id=int(bot.user.id) if bot.user else None
+            )
+            print("DISCORD_CHANGE_BRIDGE_PREFLIGHT " + json.dumps(preflight, sort_keys=True))
+    except Exception as e:
+        print(f"DISCORD_CHANGE_BRIDGE_PREFLIGHT unavailable: {type(e).__name__}: {e}")
+
     # Owner-authorized, guild-ID-pinned icon change; no channel/message operations.
     asyncio.create_task(apply_xyz_brand_icons(bot, DATA_DIR))
     try:
