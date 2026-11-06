@@ -39,6 +39,29 @@ class DiscordGuildMutator:
             raise RuntimeError(f"category {parent_category_id} not found")
         await ch.edit(category=cat, reason=self.reason)
 
+    async def publish_message_async(self, channel_id: int, content: str | None,
+                                    embed_title: str | None, embed_description: str | None,
+                                    embed_color: str | None) -> int:
+        import discord
+        ch = self.guild.get_channel(int(channel_id))
+        if ch is None:
+            raise RuntimeError(f"channel {channel_id} not found")
+        embed = None
+        if embed_title or embed_description:
+            color = 0xa78bfa
+            if embed_color:
+                try:
+                    color = int(str(embed_color).replace("#", ""), 16)
+                except ValueError:
+                    pass
+            embed = discord.Embed(title=embed_title or None, description=embed_description or None, color=color)
+        msg = await ch.send(
+            content=content or None,
+            embed=embed,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        return int(msg.id)
+
     def create_category(self, name: str) -> int:
         raise RuntimeError("use async methods on DiscordGuildMutator")
 
@@ -52,4 +75,7 @@ class DiscordGuildMutator:
         raise RuntimeError("use async methods on DiscordGuildMutator")
 
     def move_channel(self, channel_id, parent_category_id):
+        raise RuntimeError("use async methods on DiscordGuildMutator")
+
+    def publish_message(self, channel_id, content, embed_title, embed_description, embed_color):
         raise RuntimeError("use async methods on DiscordGuildMutator")
