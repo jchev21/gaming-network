@@ -1236,6 +1236,12 @@ class NativeChannelHubView(discord.ui.LayoutView):
         button = discord.ui.Button(label="Refresh feed", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id="gn:channelhub:refresh")
         button.callback = self._refresh
         container.add_item(discord.ui.ActionRow(button))
+        if panel == "x":
+            container.add_item(discord.ui.ActionRow(discord.ui.Button(
+                label="Play Arcade",
+                style=discord.ButtonStyle.link,
+                url="https://x-game-intake-production.up.railway.app/high-scores",
+            )))
         container.add_item(discord.ui.TextDisplay(
             "Read-only · public X data or this channel only. For the full multi-server Studio, use Gaming Network → Launch in Discord App Launcher."
         ))
