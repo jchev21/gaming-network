@@ -75,10 +75,22 @@ def _journal(data_dir: Path) -> Journal:
 
 
 def _is_owner(interaction: discord.Interaction) -> bool:
+    # Both effective guild authority and an explicit operator allowlist are mandatory.
     owners = _owner_ids()
-    if not owners:
+    guild = getattr(interaction, "guild", None)
+    user = getattr(interaction, "user", None)
+    if not owners or guild is None or user is None:
         return False
-    return int(interaction.user.id) in owners
+    try:
+        uid = int(user.id)
+        if uid not in owners:
+            return False
+        if uid == int(getattr(guild, "owner_id", 0) or 0):
+            return True
+        permissions = getattr(user, "guild_permissions", None)
+        return bool(permissions and getattr(permissions, "manage_guild", False))
+    except (TypeError, ValueError, AttributeError):
+        return False
 
 
 def _guild_ok(interaction: discord.Interaction, config: dict) -> str | None:
