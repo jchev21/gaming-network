@@ -293,7 +293,7 @@ export async function start(env = process.env) {
           'x-robots-tag': 'noindex, nofollow',
           'referrer-policy': 'no-referrer',
           'x-content-type-options': 'nosniff',
-          'content-security-policy': "default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          'content-security-policy': "default-src 'none'; connect-src 'self'; img-src 'self' https://gaming-network-web-production.up.railway.app; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
         });
         res.end(html);
       } catch (err) {
