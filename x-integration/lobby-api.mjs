@@ -13,8 +13,10 @@ const err=(code,message,status=400)=>new LobbyError(code,message,status);
 async function readBody(req){let bytes=0,chunks=[];for await(const c of req){bytes+=c.length;if(bytes>8192)throw err('TOO_LARGE','Request body too large',413);chunks.push(c)}try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw err('INVALID_JSON','Invalid JSON')}}
 async function load(file){try{const d=JSON.parse(await fs.readFile(file,'utf8'));return{invites:d.invites||{},lobbies:d.lobbies||{},joinSecrets:d.joinSecrets||{}}}catch(e){if(e.code!=='ENOENT')throw e;return{invites:{},lobbies:{},joinSecrets:{}}}}
 async function save(file,db){await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file+'.tmp',JSON.stringify(db),{mode:0o600});await fs.rename(file+'.tmp',file)}
-export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save}={}){
+export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminToken='',moderatorXId=process.env.X_MODERATOR_USER_ID||'',publicOrigin,now=Date.now,joinSecretKey=process.env.X_JOIN_SECRET_KEY||'',legacyJoinSecretKey=process.env.X_LEGACY_JOIN_SECRET_KEY||'',saveState=save,
+  memberAuthorized=null}={}){
  if(!auth||typeof auth.authenticated!=='function')throw Error('X auth required');
+ if(memberAuthorized!==null&&typeof memberAuthorized!=='function')throw Error('Invalid Discord Member role gate');
  if(!publicOrigin||!/^https:\/\/[^/?#]+$/.test(publicOrigin))throw Error('A secure public origin is required');
  const file=path.join(dataDir,'x-lobbies.json');
  let db=await load(file);
@@ -71,6 +73,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(method==='GET'&&pathname==='/api/my-games'){
    try{
     const actor=who(req);
+    if(memberAuthorized)await memberAuthorized(req);
     const result=await serial(touch=>{
      const all=Object.values(db.lobbies).filter(g=>g.ownerXId===actor.id ||
       g.entries.some(e=>e.xId===actor.id) || (g.waitlist||[]).some(e=>e.xId===actor.id) || (g.withdrawnXIds||[]).includes(actor.id) || (g.removedXIds||[]).includes(actor.id));
@@ -115,15 +118,22 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    return true;
   }
   if(method==='POST'&&pathname==='/api/lobbies'){
-   try{origin(req);const user=who(req);guard('create:'+user.id,10);const body=await readBody(req);
+   try{origin(req);const user=who(req);if(memberAuthorized)await memberAuthorized(req);
+    guard('create:'+user.id,10);const body=await readBody(req);
     const result=await serial(()=>{
-     const token=String(body.inviteToken||'');
-     if(!/^[A-Za-z0-9_-]{43}$/.test(token))throw err('INVITE_REQUIRED','Valid invitation required',403);
-     const invite=db.invites[sha(token)];
-     if(!invite||invite.usedAt||invite.expiresAt<=now()||invite.ownerXId!==user.id)throw err('INVITE_INVALID','Invite expired or not for this X account',403);
+     let invite=null;
+     if(!memberAuthorized){
+      const token=String(body.inviteToken||'');
+      if(!/^[A-Za-z0-9_-]{43}$/.test(token))throw err('INVITE_REQUIRED','Valid invitation required',403);
+      invite=db.invites[sha(token)];
+      if(!invite||invite.usedAt||invite.expiresAt<=now()||invite.ownerXId!==user.id)throw err('INVITE_INVALID','Invite expired or not for this X account',403);
+     }
      const recent=Object.values(db.lobbies).filter(g=>g.ownerXId===user.id&&g.createdAt>=now()-86400000).length;
      if(recent>=10)throw err('RATE_LIMIT','Daily game limit reached',429);
-     const g=createLobby(body,user.id,now());g.sourcePostId=invite.postId;db.lobbies[g.id]=g;invite.usedAt=now();
+     const g=createLobby(body,user.id,now());
+     g.sourcePostId=invite?.postId||null;
+     db.lobbies[g.id]=g;
+     if(invite)invite.usedAt=now();
      return{game:publicLobby(g,now()),lobbyUrl:publicOrigin+'/lobby?id='+g.id};
     });send(res,201,result)
    }catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
@@ -132,6 +142,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(manage && ((manage[2]==='me' && method==='GET') || (method==='POST' && manage[2]!=='me'))) {
    try {
     const actor=who(req);
+    if(memberAuthorized)await memberAuthorized(req);
     if(method==='POST'){origin(req);guard('manage:'+manage[2]+':'+actor.id,20);}
     const body=manage[2]==='replace'&&method==='POST'?await readBody(req):null;
     const result=await serial(touch=>{
@@ -176,6 +187,7 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
   if(privateMatch&&(method==='GET'||method==='POST')){
    try{
     const actor=who(req);
+    if(memberAuthorized)await memberAuthorized(req);
     if(!joinSecretKey)throw err('NOT_CONFIGURED','Host joining instructions are unavailable',503);
     let body=null;
     if(method==='POST'){origin(req);guard('join-details:'+actor.id,10);body=await readBody(req)}
@@ -202,7 +214,8 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    catch(e){send(res,e.status||500,{error:e.code||'FAILED',message:e.status?e.message:'Server temporarily unavailable'})}return true;
   }
   if(match&&match[2]&&method==='POST'){
-   try{origin(req);const user=who(req);guard('join:'+user.id,20);const result=await serial(()=>{
+   try{origin(req);const user=who(req);if(memberAuthorized)await memberAuthorized(req);
+    guard('join:'+user.id,20);const result=await serial(()=>{
     const g=db.lobbies[match[1]];if(!g)throw err('NOT_FOUND','Game not found',404);
     joinLobby(g,user.id,'@'+user.username,now());return publicLobby(g,now());
    });send(res,200,{game:result})
