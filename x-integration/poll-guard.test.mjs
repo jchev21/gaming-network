@@ -85,7 +85,9 @@ await withTemp(async file => {
   await capture(async()=>{calls++;return new Response('{}',{status:429,headers:{'retry-after':'120'}});},async()=>{
     await assert.rejects(pollX(config(),state,file),/HTTP 429/);
     assert.ok(Date.parse(state.pause_until)>Date.now());
-    await assert.rejects(pollX(config(),state,file),/paused/);
+    const restarted = await persisted(file);
+    assert.equal(restarted.pause_until, state.pause_until);
+    await assert.rejects(pollX(config(),restarted,file),/paused/);
   });
   assert.equal(calls,1);
 });
