@@ -26,6 +26,7 @@ from discord_bot_change_bridge import (
     rollback_preview,
 )
 from discord_bot_change_bridge.inventory_live import build_inventory_from_guild
+from discord_bot_change_bridge.preflight import make_phase1_category_proposal
 from discord_bot_change_bridge.discord_mutator import DiscordGuildMutator
 from discord_bot_change_bridge.async_apply import apply_approved_plan_async
 
@@ -156,6 +157,67 @@ def register_change_commands(tree: app_commands.CommandTree, *, config: dict, da
         if diff.risk_flags:
             lines.append("**Risk flags:** " + "; ".join(diff.risk_flags[:8]))
         lines.append("\nNext: `/change-approve plan_hash_value:<full hash>` (owner only).")
+        await interaction.followup.send("\n".join(lines)[:1900], ephemeral=True)
+
+    @tree.command(name="change-layout-preview", description="Owner: auto-preview XYZ.HUB missing PUBLIC categories, no changes")
+    async def change_layout_preview(interaction: discord.Interaction):
+        if not _is_owner(interaction):
+            return await interaction.response.send_message(
+                "Denied: verified guild owner allowlist required.", ephemeral=True
+            )
+        err = _guild_ok(interaction, config)
+        if err:
+            return await interaction.response.send_message(err, ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        pch, pcat = _protected_ids(config)
+        inventory = build_inventory_from_guild(
+            interaction.guild,
+            protected_channel_ids=pch,
+            protected_category_ids=pcat,
+        )
+        raw = make_phase1_category_proposal(inventory, now_unix=int(time.time()))
+        if raw is None:
+            return await interaction.followup.send(
+                "All six public Phase 1 sections already exist. No plan was created.",
+                ephemeral=True,
+            )
+        proposal = parse_proposal(raw)
+        digest = inventory.digest()
+        ph = plan_hash(proposal)
+        diff = build_plan_diff(proposal, inventory, ph)
+        if diff.blocked:
+            return await interaction.followup.send(
+                "Preview blocked because the inventory changed or a restricted "
+                "operation was detected. No Discord changes made.",
+                ephemeral=True,
+            )
+        _PENDING[int(interaction.guild.id)] = {
+            "proposal_raw": raw,
+            "plan_hash": ph,
+            "snapshot_digest_actual": digest,
+            "previewed_by": int(interaction.user.id),
+            "previewed_at": int(time.time()),
+        }
+        lines = [
+            "**XYZ.HUB — PUBLIC CHANNEL OVERHAUL, PHASE 1**",
+            "**READ ONLY. No Discord changes made.**",
+            f"Public category creations: {len(diff.lines)}",
+            f"Current snapshot digest: `{digest}`",
+            "",
+            "**Exact plan hash:**",
+            f"`{ph}`",
+            "",
+            "**Proposed missing categories:**",
+        ]
+        lines += [
+            f"• {line.summary}" for line in diff.lines
+        ]
+        lines += [
+            "",
+            "Existing Start Here, Education, staff/private and channel messages are preserved.",
+            f"Apply enabled: **{_apply_enabled()}** (must remain false until separately authorized).",
+            "Owner can request a new review after any server changes.",
+        ]
         await interaction.followup.send("\n".join(lines)[:1900], ephemeral=True)
 
     @tree.command(name="change-approve", description="Owner: approve the exact plan hash from last preview")
