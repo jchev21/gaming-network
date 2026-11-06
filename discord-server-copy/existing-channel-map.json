@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "manifest_namespace": "gaming_network.discord_copy.v1",
+  "policy": "reuse_only_no_mutations",
+  "category_map": [
+    {"category_key": "start_here", "include": true, "existing_category_id": null},
+    {"category_key": "community", "include": true, "existing_category_id": null},
+    {"category_key": "games_x", "include": true, "existing_category_id": null},
+    {"category_key": "algo_lab", "include": true, "existing_category_id": null},
+    {"category_key": "education", "include": true, "existing_category_id": null},
+    {"category_key": "accounts_providers", "include": false, "existing_category_id": null},
+    {"category_key": "feedback", "include": true, "existing_category_id": null}
+  ],
+  "channel_map": [
+    {"channel_key": "start_here.page", "existing_channel_id": null, "name_hints": ["start-here"]},
+    {"channel_key": "start_here.rules", "existing_channel_id": null, "name_hints": ["rules"]},
+    {"channel_key": "start_here.help", "existing_channel_id": null, "name_hints": ["help-desk"]},
+    {"channel_key": "community.discussion", "existing_channel_id": null, "name_hints": ["community"]},
+    {"channel_key": "games_x.discussion", "existing_channel_id": null, "name_hints": ["games-and-lobbies"]},
+    {"channel_key": "algo_lab.discussion", "existing_channel_id": null, "name_hints": ["algo-lab"]},
+    {"channel_key": "education.discussion", "existing_channel_id": null, "name_hints": ["education"]},
+    {"channel_key": "accounts_providers.discussion", "existing_channel_id": null, "name_hints": ["accounts-and-providers"]},
+    {"channel_key": "feedback.bugs", "existing_channel_id": null, "name_hints": ["bugs"]},
+    {"channel_key": "feedback.suggestions", "existing_channel_id": null, "name_hints": ["suggestions"]},
+    {"channel_key": "feedback.discussion", "existing_channel_id": null, "name_hints": ["feedback-discussion"]}
+  ],
+  "configured_intake_ids": {
+    "GN_BUGS_CHANNEL_ID": null,
+    "GN_SUGGESTIONS_CHANNEL_ID": null
+  }
+}
