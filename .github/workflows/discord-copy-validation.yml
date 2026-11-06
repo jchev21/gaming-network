@@ -1,0 +1,38 @@
+name: Discord copy manifest offline tests
+
+on:
+  push:
+    branches: [review/discord-copy-manifest-recovered-1106]
+  pull_request:
+    paths:
+      - 'discord-server-copy/**'
+      - 'tools/validate-discord-copy.py'
+      - 'tests/test_discord_copy_manifest.py'
+      - '.github/workflows/discord-copy-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run recovered manifest regression suite
+        run: python -m unittest discover -s tests -p 'test_discord_copy_manifest.py' -v
+      - name: Validate draft manifest and mapping
+        run: python tools/validate-discord-copy.py
+      - name: Check readiness remains blocked pending real inventory and videos
+        run: |
+          set +e
+          python tools/validate-discord-copy.py --ready
+          code=$?
+          if [ "$code" != "1" ]; then
+            echo "Expected --ready exit 1, got $code"
+            exit 1
+          fi
+          echo "Expected readiness block confirmed"
