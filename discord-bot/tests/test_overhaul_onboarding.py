@@ -167,7 +167,7 @@ class PublicMoveTests(unittest.TestCase):
         raw = build_move_batch(inv, now_unix=100, max_moves=2)
         self.assertLessEqual(len(raw["operations"]), 2)
         proposal = parse_proposal(raw)
-        inv.channels[0].name = "renamed"
+        inv.channels[0] = ChannelSnap(1567827003414159365, "renamed", "text", category_id=10)
         self.assertTrue(build_plan_diff(proposal, inv, plan_hash(proposal)).blocked)
 
 
