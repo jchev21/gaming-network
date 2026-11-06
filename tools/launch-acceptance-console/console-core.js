@@ -32,6 +32,13 @@
     if(typeof t!=='string'||new TextEncoder().encode(t).length>MAX)throw Error('Import exceeds 200 KB');
     return validate(JSON.parse(t));
   }
+  // Imported files are untrusted evidence, even if a JSON payload claims prior signoff.
+  // Preserve completed checks but require the operator to acknowledge them in this session.
+  function importRecord(text) {
+    const record = parse(text);
+    revoke(record);
+    return record;
+  }
   function counts(s,g){
     const out={total:0,pass:0,fail:0,blocked:0,untested:0};
     for(const c of D.cases.filter(c=>!g||c.group===g)){out.total++;out[{PASS:'pass',FAIL:'fail',BLOCKED:'blocked','NOT TESTED':'untested'}[s.results[c.id].status]]++;}
@@ -68,6 +75,6 @@
     a.push('## Responsible human acknowledgement','Owner: '+escape(s.owner),'Acknowledged: '+s.acknowledged,'Console self-tests and CI do NOT certify launch. No merge or deploy without owner approval.');
     return a.join('\n\n');
   }
-  const C={D,S,MAX,blank,validate,parse,counts,ready,revoke,update,sign,snapshot,summary,markdown};
+  const C={D,S,MAX,blank,validate,parse,importRecord,counts,ready,revoke,update,sign,snapshot,summary,markdown};
   if(typeof module!=='undefined')module.exports=C;else globalThis.ConsoleCore=C;
 })();
