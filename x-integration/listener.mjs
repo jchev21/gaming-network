@@ -263,7 +263,7 @@ export async function start(env = process.env) {
       return;
     }
     // Static, local-browser previews only. The X API is not called here.
-    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html', '/my-games': 'my-games.html' };
+    const staticPages = { '/': 'demo.html', '/setup': 'demo.html', '/high-scores': 'high-scores.html', '/lobby': 'lobby.html', '/my-games': 'my-games.html', '/moderation': 'moderation.html' };
     if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(staticPages, url.pathname)) {
       try {
         const html = await fs.readFile(new URL('./' + staticPages[url.pathname], import.meta.url));
