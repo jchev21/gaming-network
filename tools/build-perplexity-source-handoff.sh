@@ -64,8 +64,8 @@ for f in root.rglob('*'):
  for i,line in enumerate(lines,1):
   # Precisely identified synthetic credentials from checked-in regression fixtures.
   # Do not blanket-allow test files or secret variable names.
-  if 'Bearer test-server-private-encryption-key' in line or "X_CLIENT_SECRET: 'local-dummy-client-secret'" in line: continue
-  if any(p.search(line) for p in patterns):
+  checked = line.replace('Bearer test-server-private-encryption-key', 'Bearer [SYNTHETIC-FIXTURE]')                 .replace("X_CLIENT_SECRET: 'local-dummy-client-secret'", "X_CLIENT_SECRET: '[SYNTHETIC-FIXTURE]'")
+  if any(p.search(checked) for p in patterns):
    hits.append((str(f.relative_to(root)),i))
 if hits:
  for f,line in hits: print('BLOCKED possible secret',f,'line',line)
