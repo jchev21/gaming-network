@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 const WEB = 'https://gaming-network-web-production.up.railway.app';
 const X = 'https://x-game-intake-production.up.railway.app';
+const API = 'https://gaming-network-api-production.up.railway.app';
 const checks = [];
 const context = { revision: 'friends-family-1105', checkedAt: new Date().toISOString(),
   mode: 'READ_ONLY', checks };
@@ -84,6 +85,13 @@ await probe('X OAuth sign-in start redirect and secure state cookie', X,
     return 'OAuth state cookie missing key security flags';
   return '';
 });
+// Deny access to historical *private bot dashboard* paths if a separate public API
+// happens to expose them. Never read, print or save response bodies.
+for (const route of ['/api/feed','/api/chat','/api/channels','/api/servers']) {
+  await probe('Separate public API refuses private Discord dashboard ' + route, API, route,
+    (r) => [401,403,404].includes(r.status) ? '' : 'Anonymous private dashboard route unexpectedly accessible');
+}
+
 const ok=checks.filter(x=>x.status==='PASS').length, failed=checks.filter(x=>x.status==='FAIL').length,
  blocked=checks.filter(x=>x.status==='BLOCKED').length;
 context.summary={ pass:ok, fail:failed, blocked, total:checks.length };
