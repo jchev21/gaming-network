@@ -66,7 +66,10 @@ try{
     'Concurrent session writes must all survive a restart');
 
   // Never redirect to third-party domains or internal admin routes from OAuth input.
-  for(const next of ['https://evil.example/','//evil.example/','/admin/mentions']){
+  for(const next of ['https://evil.example/','//evil.example/','/admin/mentions',
+    '/my-games?mode=recent\r\nSet-Cookie:forced=1',
+    '/setup?tab=home\nLocation:https://evil.example/',
+    '/lobby/123?x=\tbad']){
     const begin=await fetch(first+'/auth/x/start?next='+encodeURIComponent(next),{redirect:'manual'});
     assert.equal(begin.status,302);
     const loc=new URL(begin.headers.get('location'));
