@@ -62,6 +62,9 @@ for f in root.rglob('*'):
  try: lines=f.read_text(encoding='utf-8').splitlines()
  except UnicodeError: hits.append((str(f.relative_to(root)),'binary/non-UTF8')); continue
  for i,line in enumerate(lines,1):
+  # Precisely identified synthetic credentials from checked-in regression fixtures.
+  # Do not blanket-allow test files or secret variable names.
+  if 'Bearer test-server-private-encryption-key' in line or "X_CLIENT_SECRET: 'local-dummy-client-secret'" in line: continue
   if any(p.search(line) for p in patterns):
    hits.append((str(f.relative_to(root)),i))
 if hits:
