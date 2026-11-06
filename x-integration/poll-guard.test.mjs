@@ -183,4 +183,24 @@ await withTemp(async file => {
   assert.equal((await persisted(file)).budget.used,1);
 });
 
+await withTemp(async file => {
+  const state = makeState();
+  const settings = config({ maxReadsPerHour: 1 });
+  let calls = 0;
+  await capture(async () => {
+    calls++;
+    return response([mention(121)], 'PAGE2');
+  }, async () => {
+    await pollX(settings, state, file);
+    const restarted = await persisted(file);
+    assert.equal(restarted.budget.hourUsed, 1);
+    await assert.rejects(pollX(settings, restarted, file), /hourly API read-call cap/);
+    const saved = await persisted(file);
+    assert.equal(saved.budget.used, 1);
+    assert.equal(saved.scan.next_token, 'PAGE2');
+    assert.equal(saved.since_id, '100');
+  });
+  assert.equal(calls, 1);
+});
+
 console.log('X poll guard tests passed: restart-safe pages, high-water, cost cap, 402, 429, baseline and queue safety');
