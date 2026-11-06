@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "key_namespace": "gaming_network.discord_copy.v1",
+  "mode": "offline_draft",
+  "permissions_are": "proposed_not_observed",
+  "categories": [
+    {"key": "start_here", "proposed_name": "START HERE", "optional": false},
+    {"key": "community", "proposed_name": "COMMUNITY", "optional": false},
+    {"key": "games_x", "proposed_name": "GAMES & X", "optional": false},
+    {"key": "algo_lab", "proposed_name": "ALGO LAB", "optional": false},
+    {"key": "education", "proposed_name": "EDUCATION", "optional": false},
+    {"key": "accounts_providers", "proposed_name": "ACCOUNT & PROVIDER DISCUSSION", "optional": true},
+    {"key": "feedback", "proposed_name": "FEEDBACK", "optional": false}
+  ],
+  "channels": [
+    {"key": "start_here.page", "category_key": "start_here", "proposed_name": "start-here", "kind": "information", "read_only": true, "topic": "Your Gaming Network starting point: rules, category links, approved app destinations and what Coming Soon labels mean.", "pin_key": null, "video_keys": [], "environment_binding": null},
+    {"key": "start_here.rules", "category_key": "start_here", "proposed_name": "rules", "kind": "information", "read_only": true, "topic": "Community expectations, safe sharing and moderation guidance. Never post passwords, tokens, private joining instructions or redemption codes.", "pin_key": null, "video_keys": [], "environment_binding": null},
+    {"key": "start_here.help", "category_key": "start_here", "proposed_name": "help-desk", "kind": "discussion", "read_only": false, "topic": "Ask where to begin or get help navigating the network. Check the pinned Start Here guide first. Do not post credentials or private account details.", "pin_key": "start_here.help.video_index", "video_keys": ["start_here.welcome", "start_here.safety", "start_here.navigation"], "environment_binding": null},
+    {"key": "community.discussion", "category_key": "community", "proposed_name": "community", "kind": "discussion", "read_only": false, "topic": "Meet the people behind the games. Introduce yourself and keep the conversation welcoming. Guides are collected in the pinned Video Index.", "pin_key": "community.discussion.video_index", "video_keys": ["community.introductions", "community.crew", "community.help"], "environment_binding": null},
+    {"key": "games_x.discussion", "category_key": "games_x", "proposed_name": "games-and-lobbies", "kind": "discussion", "read_only": false, "topic": "Find your next crew and discuss public game information. Keep private joining codes out of this channel; follow the existing app entry rules.", "pin_key": "games_x.discussion.video_index", "video_keys": ["games_x.feed", "games_x.host", "games_x.join", "games_x.entry", "games_x.privacy"], "environment_binding": null},
+    {"key": "algo_lab.discussion", "category_key": "algo_lab", "proposed_name": "algo-lab", "kind": "discussion", "read_only": false, "topic": "Discuss educational research and strategy assumptions. Coming Soon previews are not live tools or verified performance. Start with the pinned Video Index.", "pin_key": "algo_lab.discussion.video_index", "video_keys": ["algo_lab.current", "algo_lab.csv", "algo_lab.assumptions", "algo_lab.metrics"], "environment_binding": null},
+    {"key": "education.discussion", "category_key": "education", "proposed_name": "education", "kind": "discussion", "read_only": false, "topic": "Ask questions and discuss owner-approved lessons. Find current resources in the pinned index. Planned improvements will be labelled Coming Soon.", "pin_key": "education.discussion.video_index", "video_keys": ["education.navigation", "education.lesson", "education.practice", "education.progress"], "environment_binding": null},
+    {"key": "accounts_providers.discussion", "category_key": "accounts_providers", "proposed_name": "accounts-and-providers", "kind": "discussion", "read_only": false, "topic": "Discuss provider requirements without credentials. Distinguish allocated size from balance, equity and payouts. Mockups do not imply official connections.", "pin_key": "accounts_providers.discussion.video_index", "video_keys": ["accounts_providers.terminology", "accounts_providers.requirements", "accounts_providers.connections"], "environment_binding": null},
+    {"key": "feedback.bugs", "category_key": "feedback", "proposed_name": "bugs", "kind": "intake", "read_only": false, "topic": "Report steps, expected behavior and actual behavior. Reports are unverified until investigated. Remove private information and never post tokens or codes.", "pin_key": null, "video_keys": [], "environment_binding": "GN_BUGS_CHANNEL_ID"},
+    {"key": "feedback.suggestions", "category_key": "feedback", "proposed_name": "suggestions", "kind": "intake", "read_only": false, "topic": "Suggest an improvement: the problem, who it helps and what success looks like. Submission does not guarantee implementation. Keep secrets out.", "pin_key": null, "video_keys": [], "environment_binding": "GN_SUGGESTIONS_CHANNEL_ID"},
+    {"key": "feedback.discussion", "category_key": "feedback", "proposed_name": "feedback-discussion", "kind": "discussion", "read_only": false, "topic": "Discuss ideas without duplicating submissions. Use dedicated bug and suggestion intake channels. Owner review determines acceptance.", "pin_key": "feedback.discussion.video_index", "video_keys": ["feedback.bug", "feedback.suggestion", "feedback.status"], "environment_binding": null}
+  ],
+  "videos": [
+    {"key": "start_here.welcome", "title": "Welcome and server navigation", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_START_HERE_URL}}", "approved": false, "transcript_url": null},
+    {"key": "start_here.safety", "title": "Rules, safe sharing and getting help", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_RULES_AND_SAFETY_URL}}", "approved": false, "transcript_url": null},
+    {"key": "start_here.navigation", "title": "Finding categories and pinned guides", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_CATEGORY_NAVIGATION_URL}}", "approved": false, "transcript_url": null},
+    {"key": "community.introductions", "title": "Introductions and community expectations", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_COMMUNITY_INTRODUCTION_URL}}", "approved": false, "transcript_url": null},
+    {"key": "community.crew", "title": "Finding shared interests", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_FINDING_YOUR_CREW_URL}}", "approved": false, "transcript_url": null},
+    {"key": "community.help", "title": "Questions and concerns", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_COMMUNITY_HELP_URL}}", "approved": false, "transcript_url": null},
+    {"key": "games_x.feed", "title": "Browsing public games", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_PUBLIC_GAME_FEED_URL}}", "approved": false, "transcript_url": null},
+    {"key": "games_x.host", "title": "Host approval and session creation", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_APPROVED_HOST_FLOW_URL}}", "approved": false, "transcript_url": null},
+    {"key": "games_x.join", "title": "Joining, waitlists and leaving", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_PLAYER_JOIN_FLOW_URL}}", "approved": false, "transcript_url": null},
+    {"key": "games_x.entry", "title": "First come versus lottery", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_ENTRY_RULES_URL}}", "approved": false, "transcript_url": null},
+    {"key": "games_x.privacy", "title": "Private joining instructions", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_GAME_PRIVACY_URL}}", "approved": false, "transcript_url": null},
+    {"key": "algo_lab.current", "title": "Current Algo Lab overview", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_CURRENT_ALGO_LAB_URL}}", "approved": false, "transcript_url": null},
+    {"key": "algo_lab.csv", "title": "Educational CSV preparation", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_CSV_PREPARATION_URL}}", "approved": false, "transcript_url": null},
+    {"key": "algo_lab.assumptions", "title": "Execution assumptions and costs", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_BACKTEST_ASSUMPTIONS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "algo_lab.metrics", "title": "Equity, drawdown and sample warnings", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_RESEARCH_METRICS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "education.navigation", "title": "Current approved lessons", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_EDUCATION_NAVIGATION_URL}}", "approved": false, "transcript_url": null},
+    {"key": "education.lesson", "title": "Lesson walkthrough", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_LESSON_WALKTHROUGH_URL}}", "approved": false, "transcript_url": null},
+    {"key": "education.practice", "title": "Practice and capstone guidance", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_PRACTICE_AND_CAPSTONES_URL}}", "approved": false, "transcript_url": null},
+    {"key": "education.progress", "title": "Progress and import/export guidance", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_EDUCATION_PROGRESS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "accounts_providers.terminology", "title": "Allocated size, balance, equity and payouts", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_ACCOUNT_TERMINOLOGY_URL}}", "approved": false, "transcript_url": null},
+    {"key": "accounts_providers.requirements", "title": "Provider requirements", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_PROVIDER_REQUIREMENTS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "accounts_providers.connections", "title": "Demo versus official connections", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_PROVIDER_CONNECTION_LABELS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "feedback.bug", "title": "Reproducible bug reports", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_BUG_REPORTING_URL}}", "approved": false, "transcript_url": null},
+    {"key": "feedback.suggestion", "title": "Useful suggestions", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_SUGGESTION_REPORTING_URL}}", "approved": false, "transcript_url": null},
+    {"key": "feedback.status", "title": "Report status and owner review", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_FEEDBACK_STATUS_URL}}", "approved": false, "transcript_url": null},
+    {"key": "algo_lab.planned_preview", "title": "Planned Algo Lab overview — Coming Soon", "url": null, "url_status": "unresolved", "url_placeholder": "{{VIDEO_ALGO_LAB_PREVIEW_URL}}", "approved": false, "transcript_url": null}
+  ],
+  "copy_documents": [
+    {"key": "start_here", "path": "discord-server-copy/START_HERE.md", "label": "ONBOARDING", "video_keys": ["start_here.welcome"]},
+    {"key": "channel_descriptions", "path": "discord-server-copy/CHANNEL_DESCRIPTIONS.md", "label": "PROPOSED", "video_keys": []},
+    {"key": "video_indexes", "path": "discord-server-copy/PINNED_VIDEO_INDEX_TEMPLATES.md", "label": "TEMPLATE", "video_keys": []},
+    {"key": "algo_lab_preview", "path": "discord-server-copy/COMING_SOON_ALGO_LAB.md", "label": "COMING SOON", "video_keys": ["algo_lab.planned_preview"]},
+    {"key": "education_preview", "path": "discord-server-copy/COMING_SOON_EDUCATION.md", "label": "COMING SOON", "video_keys": []}
+  ]
+}
