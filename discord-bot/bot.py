@@ -1234,7 +1234,7 @@ class NativeChannelHubView(discord.ui.LayoutView):
                 discord.MediaGalleryItem(f"attachment://{image_filename}", description="Gaming Network bot dashboard image")
             ))
         button = discord.ui.Button(label="Refresh feed", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id="gn:channelhub:refresh")
-        button.callback = self._refresh
+        button.callback = self._on_refresh_feed
         container.add_item(discord.ui.ActionRow(button))
         container.add_item(discord.ui.TextDisplay(
             "Read-only · public X data or this channel only. For the full multi-server Studio, use Gaming Network → Launch in Discord App Launcher."
@@ -1264,7 +1264,7 @@ class NativeChannelHubView(discord.ui.LayoutView):
             return await interaction.response.send_message("Invalid feed selection.", ephemeral=True)
         await self._redraw(interaction, panel)
 
-    async def _refresh(self, interaction):
+    async def _on_refresh_feed(self, interaction):
         rec = data.get("native_hubs", {}).get(str(interaction.message.id), {})
         panel = rec.get("panel", "channel")
         await self._redraw(interaction, panel if panel in NATIVE_HUB_FEEDS else "channel")
