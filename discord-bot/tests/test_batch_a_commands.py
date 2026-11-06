@@ -56,6 +56,20 @@ class InventoryLiveTests(unittest.TestCase):
         self.assertTrue(inv.channels[0].private)
         self.assertTrue(inv.categories[0].private)
 
+    def test_effective_view_channel_permission_controls_privacy(self):
+        public = FakeChannel(10, "welcome")
+        public.permissions_for = lambda role: SimpleNamespace(view_channel=True)
+        hidden = FakeChannel(11, "support-private")
+        hidden.permissions_for = lambda role: SimpleNamespace(view_channel=False)
+        g = FakeGuild(1566290427366080612, [], [public, hidden], 100)
+        inventory = build_inventory_from_guild(g)
+        self.assertFalse(inventory.channels[0].private)
+        self.assertTrue(inventory.channels[1].private)
+
+    def test_unknown_visibility_is_private_not_public(self):
+        g = FakeGuild(1566290427366080612, [], [FakeChannel(12, "unknown")], 100)
+        self.assertTrue(build_inventory_from_guild(g).channels[0].private)
+
     def test_digest_stable(self):
         ch = FakeChannel(9, "general")
         g = FakeGuild(1, [], [ch], 1)
