@@ -30,6 +30,18 @@ async def apply_approved_plan_async(
     if journal.is_idempotency_applied(proposal.idempotency_token):
         return ApplyResult(ok=True, plan_hash=ph, skipped_idempotent=True)
 
+    # A crash after Discord accepts an operation but before a receipt is stored
+    # must never permit an automatic replay of that operation.
+    # A completed batch is handled by the idempotency check above.
+    for old in journal.entries():
+        if old.get("kind") == "operation_attempt" and (
+            old.get("detail") or {}
+        ).get("idempotency_token") == proposal.idempotency_token:
+            return ApplyResult(
+                ok=False, plan_hash=ph,
+                error="prior operation attempt requires manual reconciliation; refusing replay",
+            )
+
     if journal.is_approval_consumed(approval.approval_id):
         return ApplyResult(ok=False, plan_hash=ph, error="approval already consumed")
 
@@ -46,6 +58,15 @@ async def apply_approved_plan_async(
     created: dict = {}
     try:
         for op in proposal.operations:
+            # Persist intent BEFORE the outbound Discord API call. Even if a
+            # process dies after the send but before the receipt, retry fails
+            # closed rather than duplicating a message or channel.
+            journal.append(JournalEntry(
+                kind="operation_attempt", at_unix=now, guild_id=proposal.guild_id,
+                proposal_id=proposal.proposal_id, plan_hash=ph,
+                detail={"op_id": op.op_id, "op": op.op,
+                        "idempotency_token": proposal.idempotency_token},
+            ))
             new_id = await _apply_one_async(op, mutator)
             if new_id is not None:
                 created[op.op_id] = new_id
