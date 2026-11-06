@@ -20,6 +20,19 @@ try{
  const csrf=start.headers.get('set-cookie').split(';')[0];
  const state=new URL(start.headers.get('location')).searchParams.get('state');
  const bad=await fetch(base+'/auth/x/callback?state=bad&code=c',{headers:{cookie:csrf},redirect:'manual'});assert.equal(bad.status,400);
+ // User-supplied cookies may contain invalid URL escapes or invalid UTF-8.
+ // They must not crash the server, invalidate another user's pending flow,
+ // or create an authenticated session.
+ for(const malformed of ['%ZZ','%E0%A4%A']){
+  assert.equal(auth.authenticated({headers:{cookie:'gn_x_session='+malformed}}),null);
+  const invalidSession=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+malformed}});
+  assert.equal(invalidSession.status,200);
+  assert.equal((await invalidSession.json()).authenticated,false);
+  const invalidState=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{
+   headers:{cookie:'gn_x_oauth_state='+malformed},redirect:'manual'
+  });
+  assert.equal(invalidState.status,400);
+ }
  const cb=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{headers:{cookie:csrf},redirect:'manual'});
  assert.equal(cb.status,302);
  const sid=cb.headers.get('set-cookie').split('gn_x_session=')[1].split(';')[0];
