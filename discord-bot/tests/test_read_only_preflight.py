@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from discord_bot_change_bridge.preflight import (
     TARGET_GUILD_ID,
     make_public_preflight,
+    make_phase1_category_proposal,
 )
 
 
@@ -44,6 +45,10 @@ class FakeGuild:
         ))
 
 
+from discord_bot_change_bridge.inventory_live import build_inventory_from_guild
+from discord_bot_change_bridge.schema import parse_proposal, plan_hash
+from discord_bot_change_bridge.diff import build_plan_diff
+
 class PreflightTests(unittest.TestCase):
     def test_only_public_inventory_emitted(self):
         record = make_public_preflight(FakeGuild(), bot_id=123)
@@ -58,6 +63,30 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(record["bot_permissions"]["manage_channels"])
         self.assertEqual(record["guild_owner_id"], FakeGuild.owner_id)
         self.assertEqual(record["mode"], "READ_ONLY_NO_CHANGES")
+
+    def test_one_click_plan_only_creates_missing_public_categories(self):
+        inv = build_inventory_from_guild(FakeGuild())
+        raw = make_phase1_category_proposal(inv, now_unix=1000)
+        self.assertIsNotNone(raw)
+        proposal = parse_proposal(raw)
+        names = {op.name for op in proposal.operations}
+        self.assertEqual(names, {
+            "GAMES & X", "ALGO LAB", "ALL FIRMS", "FEEDBACK", "DISCORD STUDIO"
+        })
+        self.assertTrue(all(op.op == "create_category" for op in proposal.operations))
+        self.assertEqual(proposal.snapshot_digest, inv.digest())
+        self.assertFalse(build_plan_diff(proposal, inv, plan_hash(proposal)).blocked)
+
+    def test_existing_categories_are_not_duplicated(self):
+        guild = FakeGuild()
+        for i, name in enumerate((
+            "GAMES & X", "ALGO LAB", "ALL FIRMS", "FEEDBACK", "DISCORD STUDIO"
+        )):
+            category = FakeChannel(300 + i, name, True, is_category=True)
+            guild.categories.append(category)
+            guild.channels.append(category)
+        inv = build_inventory_from_guild(guild)
+        self.assertIsNone(make_phase1_category_proposal(inv, now_unix=1000))
 
     def test_target_guild_only(self):
         bad = FakeGuild()
