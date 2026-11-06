@@ -1,4 +1,7 @@
-"""Effective member visibility — report only, never mutates permissions."""
+"""Effective member visibility — report only, never mutates permissions.
+
+Distinguishes category_overwrite vs channel_overwrite vs effective member view.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,6 +22,12 @@ class ChannelVisibility:
     send: bool | None
     connect: bool | None
     source: str
+    category_view: bool | None = None
+    category_send: bool | None = None
+    category_connect: bool | None = None
+    channel_view: bool | None = None
+    channel_send: bool | None = None
+    channel_connect: bool | None = None
 
 
 @dataclass
@@ -51,48 +60,62 @@ def _effective_bool(allow, deny, bit):
     return False
 
 
+def _triple(allow, deny):
+    return (
+        _effective_bool(allow, deny, VIEW_CHANNEL),
+        _effective_bool(allow, deny, SEND_MESSAGES),
+        _effective_bool(allow, deny, CONNECT),
+    )
+
+
 def effective_member_visibility(snapshot: GuildSnapshot) -> VisibilityReport:
-    """Report whether @everyone can view/send/connect per channel. Read-only."""
     everyone = snapshot.everyone_role_id
     cat_by_id = snapshot.category_by_id()
     rows = []
 
     for ch in snapshot.channels:
-        source = "unknown_default_deny_closed"
-        found = _bits_for(ch.overwrites, everyone)
-        allow = deny = 0
-        if found is not None:
-            allow, deny = found
-            source = "overwrite"
-        elif ch.category_id is not None and ch.category_id in cat_by_id:
-            found = _bits_for(cat_by_id[ch.category_id].overwrites, everyone)
-            if found is not None:
-                allow, deny = found
-                source = "category_overwrite"
+        cat_view = cat_send = cat_connect = None
+        ch_view = ch_send = ch_connect = None
 
-        if source == "unknown_default_deny_closed":
-            rows.append(
-                ChannelVisibility(
-                    channel_id=ch.id,
-                    channel_name=ch.name,
-                    channel_type=ch.type,
-                    view=None,
-                    send=None,
-                    connect=None,
-                    source=source,
-                )
-            )
+        if ch.category_id is not None and ch.category_id in cat_by_id:
+            cat_bits = _bits_for(cat_by_id[ch.category_id].overwrites, everyone)
+            if cat_bits is not None:
+                cat_view, cat_send, cat_connect = _triple(*cat_bits)
+
+        ch_bits = _bits_for(ch.overwrites, everyone)
+        if ch_bits is not None:
+            ch_view, ch_send, ch_connect = _triple(*ch_bits)
+
+        if ch_bits is not None:
+            view, send, connect = ch_view, ch_send, ch_connect
+            source = "channel_overwrite"
+        elif cat_view is not None or cat_send is not None or cat_connect is not None:
+            view, send, connect = cat_view, cat_send, cat_connect
+            source = "category_overwrite"
         else:
-            rows.append(
-                ChannelVisibility(
-                    channel_id=ch.id,
-                    channel_name=ch.name,
-                    channel_type=ch.type,
-                    view=_effective_bool(allow, deny, VIEW_CHANNEL),
-                    send=_effective_bool(allow, deny, SEND_MESSAGES),
-                    connect=_effective_bool(allow, deny, CONNECT),
-                    source=source,
-                )
-            )
+            view = send = connect = None
+            source = "unknown_default_deny_closed"
 
-    return VisibilityReport(guild_id=snapshot.guild_id, everyone_role_id=everyone, channels=rows)
+        rows.append(
+            ChannelVisibility(
+                channel_id=ch.id,
+                channel_name=ch.name,
+                channel_type=ch.type,
+                view=view,
+                send=send,
+                connect=connect,
+                source=source,
+                category_view=cat_view,
+                category_send=cat_send,
+                category_connect=cat_connect,
+                channel_view=ch_view,
+                channel_send=ch_send,
+                channel_connect=ch_connect,
+            )
+        )
+
+    return VisibilityReport(
+        guild_id=snapshot.guild_id,
+        everyone_role_id=everyone,
+        channels=rows,
+    )
