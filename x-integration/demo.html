@@ -139,24 +139,56 @@ function render(){if(!lobby)return;
 }
 const invite=new URLSearchParams(location.search).get('invite');
 const inviteValid=Boolean(invite&&/^[A-Za-z0-9_-]{43}$/.test(invite));
-if(inviteValid){
- const banner=document.createElement('div');banner.className='box';banner.style.borderColor='#86e3bd';
- banner.textContent='Verified X invitation — only the X account that wrote the original mention can create this game. Sign-in required.';
- $('create').prepend(banner);
- const status=document.createElement('p');status.className='caption';$('create').prepend(status);
- Promise.all([fetch('/api/me').then(r=>r.json()),fetch('/health').then(r=>r.json())]).then(([me,health])=>{
-   const submit=$('create').querySelector('button[type="submit"]');
-   if(me.authenticated){status.textContent='Signed in with X as @'+me.user.username;submit.textContent='Create verified game lobby';}
-   else if(!health.oauth_ready){status.textContent='Verified X sign-in is not configured yet. The demo below still works.';submit.disabled=true;}
-   else{status.textContent='Sign in with X to create your game.';submit.disabled=true;
-     const sign=document.createElement('a');sign.textContent='Sign in with X';sign.style.color='#d2adff';
-     sign.href='/auth/x/start?next='+encodeURIComponent('/setup?invite='+invite);
-     status.append(' ',sign);
-   }
- }).catch(()=>{status.textContent='Sign-in status temporarily unavailable';$('create').querySelector('button[type="submit"]').disabled=true});
+let memberGateMode=false;
+const submitButton=$('create').querySelector('button[type="submit"]');
+const authStatus=document.createElement('p');
+authStatus.className='caption';
+authStatus.setAttribute('role','status');
+$('create').prepend(authStatus);
+submitButton.disabled=true;
+function authLink(label,href){
+ const link=document.createElement('a');
+ link.textContent=label;
+ link.href=href;
+ link.style.color='#d2adff';
+ authStatus.append(' ',link);
 }
+Promise.all([fetch('/health').then(r=>r.json()),fetch('/api/me').then(r=>r.json())]).then(async ([health,me])=>{
+ if(health.discord_member_gate_enabled){
+  memberGateMode=true;
+  const membership=await fetch('/api/discord-member').then(r=>r.json());
+  if(!me.authenticated){
+   authStatus.textContent='Sign in with X to identify your game profile.';
+   authLink('Sign in with X','/auth/x/start?next=%2Fsetup');
+  } else if(!membership.authorized){
+   authStatus.textContent='Signed in with X as @'+me.user.username+'. Discord Member role verification required.';
+   authLink('Verify Discord Member role','/auth/discord/start');
+  } else {
+   authStatus.textContent='Verified X account and Discord Member role. Real game creation is enabled.';
+   submitButton.textContent='Create Member game lobby';
+   submitButton.disabled=false;
+  }
+ } else if(inviteValid){
+  if(me.authenticated){
+   authStatus.textContent='Signed in with X as @'+me.user.username+'. Invitation is ready.';
+   submitButton.textContent='Create invited game lobby';
+   submitButton.disabled=false;
+  } else if(!health.oauth_ready){
+   authStatus.textContent='X sign-in is not configured. Real game creation unavailable.';
+  } else {
+   authStatus.textContent='Sign in with X to use your one-time invitation.';
+   authLink('Sign in with X','/auth/x/start?next='+encodeURIComponent('/setup?invite='+invite));
+  }
+ } else {
+  authStatus.textContent='Demo only. No game will be saved or posted externally.';
+  submitButton.disabled=false;
+ }
+}).catch(()=>{
+ authStatus.textContent='Account verification temporarily unavailable. Try refreshing.';
+ submitButton.disabled=true;
+});
 $('create').addEventListener('submit',async e=>{e.preventDefault();
- if(inviteValid){
+ if(inviteValid||memberGateMode){
    const mapping={'High Scores':'arcade-runner','Neon Targets':'arcade-targets','Fortnite':'fortnite','Call of Duty: Warzone':'warzone','Apex Legends':'apex-legends','Rocket League':'rocket-league','Minecraft':'minecraft','Roblox':'roblox','Valorant':'valorant','Other Multiplayer Game':'custom-multiplayer','Poker Now':'poker','Trivia':'trivia','Code Drop':'code-drop','Giveaway':'giveaway','Custom Game':'custom-multiplayer'};
    const platforms={'Discord':'discord','PC':'pc','PlayStation':'playstation','Xbox':'xbox','Mobile':'mobile','Web':'web'};
    const payload={inviteToken:invite,game:mapping[$('game').value]||'arcade-runner',platform:platforms[$('platform').value]||'web',title:$('title').value.trim(),mode:$('rule').value==='random'?'lottery':'first',seats:Number($('seats').value),roundSeconds:Number($('roundTime').value),host:hostedLabels.has($('game').value)?{mode:$('gameMode').value.trim(),region:$('region').value,crossplay:$('crossplay').value,islandCode:$('islandCode').value.trim()}:undefined};
