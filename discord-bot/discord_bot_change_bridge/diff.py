@@ -146,6 +146,19 @@ def _diff_one(op: Operation, ch: dict, cat: dict, inv: GuildInventory) -> DiffLi
         return DiffLine(op_id=op.op_id, op=op.op,
                         summary=f"Create text channel #{op.name}" + (f" under category {parent}" if parent else ""),
                         risk="medium", after={"name": op.name, "parent_category_id": parent, "topic": op.topic})
+    if op.op == "create_stage_channel":
+        parent = op.parent_category_id
+        if parent is None or parent not in cat:
+            return DiffLine(op_id=op.op_id, op=op.op, summary="Create Stage", risk="high",
+                            blocked=True, block_reason="destination category not found")
+        if parent in inv.protected_category_ids or cat[parent].private:
+            return DiffLine(op_id=op.op_id, op=op.op, summary="Create Stage", risk="high",
+                            blocked=True, block_reason="destination is restricted")
+        if any(c.name == op.name and c.category_id == parent for c in ch.values()):
+            return DiffLine(op_id=op.op_id, op=op.op, summary="Create Stage", risk="high",
+                            blocked=True, block_reason="channel named stage already exists in category")
+        return DiffLine(op_id=op.op_id, op=op.op, summary=f"Create Stage {op.name!r} under {cat[parent].name}",
+                        risk="medium", after={"name": op.name, "parent_category_id": parent})
     if op.op == "rename_channel":
         cid = op.channel_id
         if cid not in ch:
