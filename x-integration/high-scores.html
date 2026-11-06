@@ -194,7 +194,13 @@ document.querySelectorAll('[data-seconds]').forEach(btn=>btn.addEventListener('c
 canvas.addEventListener('pointerdown',clickTarget);
 document.addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='ArrowUp')&&game==='runner'&&round?.running&&!round.paused){e.preventDefault();jump();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&round?.running&&!round.paused)pause();});
-leaderboard();updateHud();draw();
+const requestedGame=new URLSearchParams(window.location.search).get('game');
+const gameId=new Map([['comet-hop','runner'],['neon-targets','target']]).get(requestedGame);
+if(gameId){changeGame(gameId);}
+else{
+ leaderboard();updateHud();draw();
+ if(requestedGame!==null)setText('status','This game is unavailable here. Choose an arcade game above.');
+}
 })();
 </script>
 </body>
