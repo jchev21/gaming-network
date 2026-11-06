@@ -1,0 +1,34 @@
+--- a/discord-bot/bot.py
++++ b/discord-bot/bot.py
+@@ -1,14 +1,30 @@
+     async def on_submit(self, interaction: discord.Interaction):
+         try:
+             d = datetime.date.fromisoformat(str(self.edate).strip())
+         except ValueError:
+             return await interaction.response.send_message("Use the date format YYYY-MM-DD, for example 2026-11-05.", ephemeral=True)
+         nid = max([e.get("id", 0) for e in data["events"]] + [0]) + 1
+-        data["events"].append({"id": nid, "title": str(self.etitle)[:100], "date": d.isoformat(), "time": str(self.etime)[:20],
+-                               "where": str(self.ewhere)[:60], "important": str(self.eimp).strip().lower() in ("y", "yes"), "going": []})
+-        save_data()
+-        await interaction.response.send_message(f"📅 Added **{self.etitle}** on {d.isoformat()}. The calendar updates in a few seconds.", ephemeral=True)
+-        await refresh_all_dashboards()
++        # Acknowledge within Discord's ~3s modal window BEFORE any disk I/O or
++        # dashboard image work. Historical 10062 Unknown interaction on Add event
++        # was consistent with slow work before the first response.
++        title = str(self.etitle)[:100]
++        event = {
++            "id": nid,
++            "title": title,
++            "date": d.isoformat(),
++            "time": str(self.etime)[:20],
++            "where": str(self.ewhere)[:60],
++            "important": str(self.eimp).strip().lower() in ("y", "yes"),
++            "going": [],
++        }
++        data["events"].append(event)
++        await interaction.response.send_message(
++            f"📅 Added **{title}** on {d.isoformat()}. The calendar updates in a few seconds.",
++            ephemeral=True,
++        )
++        await asyncio.to_thread(save_data)
++        await refresh_all_dashboards()
