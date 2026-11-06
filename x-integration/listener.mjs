@@ -72,6 +72,7 @@ function settings(env = process.env) {
     once: env.X_POLL_ENABLED === 'once',
     pollSeconds: Number.isFinite(interval) ? Math.min(3600, Math.max(90, interval)) : 120,
     maxReadsPerDay: cappedInt(env.X_MAX_READS_PER_DAY, 8, 40, 'X_MAX_READS_PER_DAY'),
+    maxReadsPerHour: cappedInt(env.X_MAX_READS_PER_HOUR, 8, 40, 'X_MAX_READS_PER_HOUR'),
     maxPagesPerPoll: cappedInt(env.X_MAX_PAGES_PER_POLL, 2, 5, 'X_MAX_PAGES_PER_POLL'),
     maxResultsPerPage: requestedPageSize,
     dataDir: env.DATA_DIR || './runtime',
@@ -92,7 +93,10 @@ async function readState(file) {
       throw new Error('Invalid saved scan cursor');
     const budget = d.budget || null;
     if (budget && (!/^\d{4}-\d\d-\d\d$/.test(String(budget.day)) ||
-      !Number.isSafeInteger(budget.used) || budget.used < 0))
+      !Number.isSafeInteger(budget.used) || budget.used < 0 ||
+      ((budget.hour !== undefined || budget.hourUsed !== undefined) &&
+        (!/^\d{4}-\d\d-\d\dT\d\d$/.test(String(budget.hour)) ||
+          !Number.isSafeInteger(budget.hourUsed) || budget.hourUsed < 0))))
       throw new Error('Invalid saved budget');
     if (d.pending !== undefined && (!Array.isArray(d.pending) || d.pending.length > maxStateItems))
       throw new Error('Invalid saved pending queue');
@@ -131,10 +135,21 @@ export async function pollX(s, state, file) {
   }
   async function request(url) {
     // Reserve before the outbound request: crashes/errors still count toward the cap.
-    const today = new Date().toISOString().slice(0, 10);
+    const timestamp = new Date().toISOString();
+    const today = timestamp.slice(0, 10);
+    const hour = timestamp.slice(0, 13);
     if (state.budget.day !== today) state.budget = { day: today, used: 0 };
     if (state.budget.used >= maxReads) throw new Error('X daily API read-call cap reached');
+    if (state.budget.hour !== hour) {
+      // For legacy state, conservatively count today's existing reads in this hour.
+      state.budget.hourUsed = state.budget.hour === undefined ? state.budget.used : 0;
+      state.budget.hour = hour;
+    }
+    if (state.budget.hourUsed >= (s.maxReadsPerHour || 8)) {
+      throw new Error('X hourly API read-call cap reached');
+    }
     state.budget.used++;
+    state.budget.hourUsed++;
     await persist(file, state);
     const response = await fetch(url, { headers: { Authorization: 'Bearer ' + s.bearer },
       signal: AbortSignal.timeout(15000) });
