@@ -89,7 +89,8 @@ export async function createLobbyApi({dataDir='./runtime',auth,mentions,adminTok
    const requests=(mentions.pending||[]).slice(0,100).map(p=>({
      post_id:p.post_id,created_at:p.created_at,request_type:p.request_type,
      excerpt:p.excerpt,status:p.status,
-     game_created:Object.values(db.lobbies).some(g=>g.sourcePostId===p.post_id)
+     game_created:Object.values(db.lobbies).some(g=>g.sourcePostId===p.post_id),
+      invitation_active:Object.values(db.invites).some(i=>i.postId===p.post_id&&!i.usedAt&&i.expiresAt>now())
    }));
    send(res,200,{requests});return true;
   }

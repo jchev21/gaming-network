@@ -21,7 +21,7 @@ const safeReturn=next=>{
  // Reject control characters in OAuth return targets, including CRLF in query strings.
  // Node refuses control characters in Location headers; without this check a
  // crafted next= value could consume a valid flow then fail its final redirect.
- return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s) &&
+ return /^\/(setup|high-scores|lobby|my-games|moderation)(?:\?|\/|$)/.test(s) &&
    !s.startsWith('//') && !s.includes('\\') && !/[\u0000-\u001f\u007f]/.test(s)
    ? s.slice(0,300) : '/setup';
 };

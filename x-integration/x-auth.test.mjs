@@ -38,7 +38,17 @@ try{
  const sid=cb.headers.get('set-cookie').split('gn_x_session=')[1].split(';')[0];
  const me=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});assert.equal((await me.json()).user.id,'900001');
  const replay=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{headers:{cookie:csrf},redirect:'manual'});assert.equal(replay.status,400);
- assert.equal(requests,2);
+ // The owner console return path must survive a verified X OAuth callback.
+ const modStart=await fetch(base+'/auth/x/start?next=%2Fmoderation',{redirect:'manual'});
+ assert.equal(modStart.status,302);
+ const modCookie=modStart.headers.get('set-cookie').split(';')[0];
+ const modState=new URL(modStart.headers.get('location')).searchParams.get('state');
+ const modCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(modState)+'&code=c',{
+   headers:{cookie:modCookie},redirect:'manual'
+ });
+ assert.equal(modCallback.status,302);
+ assert.equal(modCallback.headers.get('location'),'/moderation');
+ assert.equal(requests,4);
  await fetch(base+'/auth/logout',{method:'POST',headers:{cookie:'gn_x_session='+sid}});
  const gone=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});
  assert.equal((await gone.json()).authenticated,false);
