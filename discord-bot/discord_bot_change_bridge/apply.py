@@ -21,6 +21,9 @@ class GuildMutator(Protocol):
     def rename_channel(self, channel_id: int, name: str) -> None: ...
     def update_topic(self, channel_id: int, topic: str) -> None: ...
     def move_channel(self, channel_id: int, parent_category_id: int) -> None: ...
+    def publish_message(self, channel_id: int, content: str | None,
+                        embed_title: str | None, embed_description: str | None,
+                        embed_color: str | None) -> int: ...
 
 
 @dataclass
@@ -54,6 +57,16 @@ def apply_approved_plan(
     if journal.is_idempotency_applied(proposal.idempotency_token):
         return ApplyResult(ok=True, plan_hash=ph, skipped_idempotent=True)
 
+    # Ambiguous partial completion must never auto-replay a Discord operation.
+    for old in journal.entries():
+        if old.get("kind") == "operation_attempt" and (
+            old.get("detail") or {}
+        ).get("idempotency_token") == proposal.idempotency_token:
+            return ApplyResult(
+                ok=False, plan_hash=ph,
+                error="prior operation attempt requires manual reconciliation; refusing replay",
+            )
+
     if journal.is_approval_consumed(approval.approval_id):
         return ApplyResult(ok=False, plan_hash=ph, error="approval already consumed")
 
@@ -74,6 +87,13 @@ def apply_approved_plan(
     created = {}
     try:
         for op in proposal.operations:
+            # The attempt record is durable BEFORE the external operation.
+            journal.append(JournalEntry(
+                kind="operation_attempt", at_unix=now, guild_id=proposal.guild_id,
+                proposal_id=proposal.proposal_id, plan_hash=ph,
+                detail={"op_id": op.op_id, "op": op.op,
+                        "idempotency_token": proposal.idempotency_token},
+            ))
             _apply_one(op, mutator, created)
             applied.append(op.op_id)
             journal.append(JournalEntry(
@@ -108,6 +128,10 @@ def _apply_one(op: Operation, mutator: GuildMutator, created: dict) -> None:
         mutator.update_topic(op.channel_id or 0, op.topic or "")
     elif op.op == "move_channel":
         mutator.move_channel(op.channel_id or 0, op.parent_category_id or 0)
+    elif op.op == "publish_message":
+        created[op.op_id] = mutator.publish_message(
+            op.channel_id or 0, op.content, op.embed_title, op.embed_description, op.embed_color
+        )
     else:
         raise RuntimeError(f"refusing unsupported op {op.op}")
 
