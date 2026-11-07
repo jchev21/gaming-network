@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>High Scores Arcade | Gaming Network</title>
+<style>
+:root{--background:#0a0b12;--panel:#171923;--raised:#202231;--edge:#393b4c;--gold:#edc67b;--purple:#b09aff;--ink:#f4f2ff;--muted:#a5a4b9;--green:#85d7b1;--red:#f29aac}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% -10%,#38304f70,transparent 36%),radial-gradient(circle at 90% 0%,#38311555,transparent 42%),var(--background);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);min-height:100vh}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--purple);outline-offset:3px}header,.shell,footer{max-width:1180px;margin:auto;padding-left:24px;padding-right:24px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding-top:30px;padding-bottom:20px}.brand{font-weight:900;letter-spacing:.12em;font-size:18px}.brand span{color:var(--gold)}.chip{border:1px solid #665839;background:#2b251b;color:var(--gold);padding:7px 12px;border-radius:30px;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+h1{margin:12px 0 4px;font-weight:900;font-size:clamp(32px,6vw,55px);letter-spacing:-.05em;line-height:1.1}h1 em{font-style:normal;color:var(--gold)}h2{font-size:20px;margin:0}h3{font-size:14px;margin:0 0 11px;color:var(--ink)}p{margin:7px 0 0;color:var(--muted)}.eyebrow{color:var(--purple);font-size:11px;text-transform:uppercase;letter-spacing:.18em;font-weight:800}
+.shell{padding-bottom:45px}.hero{margin-bottom:26px}.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,.75fr);gap:20px}.card{border:1px solid var(--edge);background:linear-gradient(150deg,#1a1b2a,#11131e);border-radius:18px;padding:22px;box-shadow:0 20px 46px #03030935}.lcard{margin-bottom:20px}
+.game-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 8px}.game-tile{color:var(--ink);text-align:left;min-height:95px;padding:15px;border:1px solid #393747;border-radius:13px;background:var(--raised);transition:border-color .15s}.game-tile[aria-pressed="true"]{border-color:var(--gold);background:linear-gradient(115deg,#403421,#252439);box-shadow:inset 0 0 0 1px #79623d}.game-tile .symbol{display:block;font-size:23px}.game-tile strong{font-size:14px}.game-tile small{display:block;color:var(--muted);font-size:11px}
+.controls{display:flex;align-items:end;flex-wrap:wrap;gap:14px;margin:16px 0}.control{flex:1;min-width:160px}.control>label,.duration-heading{display:block;font-size:12px;font-weight:800;color:#dfddec;margin-bottom:8px}.control input{width:100%;padding:10px 12px;min-height:43px;border:1px solid #504d63;background:#0f111a;color:var(--ink);border-radius:10px}.durations{display:flex;gap:7px;flex-wrap:wrap}.duration{background:#232534;color:#dbd9e8;border:1px solid #484757;border-radius:10px;padding:9px 14px;min-width:66px;font-weight:800;font-size:12px}.duration[aria-pressed="true"]{background:#493c65;border-color:var(--purple);color:#fff}.primary{border:none;border-radius:12px;background:linear-gradient(110deg,#f0d499,#f2bf5d);padding:11px 19px;color:#231b0d;font-weight:900;min-height:44px}.secondary{color:var(--ink);background:#2c2e3f;border:1px solid #555566;padding:9px 15px;border-radius:10px;font-weight:800}.primary:disabled,.secondary:disabled{opacity:.4;cursor:default}
+.hud{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:20px;margin-bottom:12px}.hud-unit{border-radius:10px;border:1px solid #363a50;background:#111520;padding:12px}.hud-unit small{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.08em;font-weight:800;display:block}.hud-unit strong{font-size:24px;display:block;font-variant-numeric:tabular-nums}.canvas-wrap{overflow:hidden;border-radius:13px;border:1px solid #4b4463;position:relative;background:#0e1021;touch-action:manipulation}.canvas-wrap canvas{display:block;width:100%;height:auto;aspect-ratio:900/320;touch-action:manipulation;user-select:none}.screen-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:#0c0d1dba;backdrop-filter:blur(2px);padding:20px;pointer-events:none}.screen-overlay[hidden]{display:none}.screen-overlay h2{font-size:clamp(21px,4vw,36px);margin-bottom:4px}.screen-overlay p{max-width:350px}.canvas-help{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin:12px 0;color:var(--muted);font-size:12px}.round-status{min-height:23px;color:var(--gold);font-size:13px;font-weight:700;margin-top:10px}
+.leaderhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.leaderhead span{color:var(--muted);font-size:11px}.leader-empty{border:1px dashed #514e60;border-radius:12px;padding:20px;text-align:center;color:var(--muted);margin-top:13px;font-size:12px}.leader-row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;border-bottom:1px solid #373848;padding:12px 4px;gap:6px}.leader-row .rank{color:var(--gold);font-weight:900}.leader-row .who{overflow-wrap:anywhere;font-weight:700}.leader-row .points{font-variant-numeric:tabular-nums;color:var(--green);font-weight:900}.leader-row small{color:var(--muted);display:block;font-size:11px;font-weight:400}.callout{border-left:3px solid var(--gold);background:#473b2639;border-radius:2px 9px 9px 2px;color:#ddc9a3;padding:11px;font-size:12px;margin-top:24px}.how{margin-top:20px}.how h3{margin-bottom:8px}.how p{margin-top:7px;font-size:13px}.pill{background:#2c3042;border-radius:8px;padding:4px 7px;color:#e8e3ff;font-size:11px;white-space:nowrap}
+footer{color:#82849a;font-size:12px;padding-bottom:30px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.game-tile{min-height:86px}}
+@media(max-width:480px){header,.shell,footer{padding-left:13px;padding-right:13px}.card{padding:15px}.game-picker{gap:7px}.game-tile{padding:10px}.duration{flex:1;min-width:55px;padding:9px 4px}.hud-unit{padding:9px}.hud-unit strong{font-size:20px}.canvas-help{font-size:11px}}
+</style>
+</head>
+<body>
+<header><div class="brand">GAMING <span>NETWORK</span></div><div class="chip">High Scores • Arcade Preview</div></header>
+<main class="shell">
+<div class="hero"><div class="eyebrow">Season zero · Solo challenges</div><h1>Chase the <em>high score.</em></h1><p>Pick a game and a time limit. Play, improve, and beat your personal records.</p></div>
+<div class="layout">
+<div>
+<section class="card lcard" aria-label="Arcade game controls">
+<h2>Choose your challenge</h2><p>Two quick arcade games. More are on the way.</p>
+<div class="game-picker" role="group" aria-label="Choose game">
+<button type="button" class="game-tile" id="choose-runner" aria-pressed="true"><span class="symbol" aria-hidden="true">⚡</span><strong>Comet Hop</strong><small>Jump over obstacles</small></button>
+<button type="button" class="game-tile" id="choose-target" aria-pressed="false"><span class="symbol" aria-hidden="true">🎯</span><strong>Neon Targets</strong><small>Tap targets fast</small></button>
+</div>
+<div class="controls"><div class="control"><label for="player-name">Player name</label><input id="player-name" type="text" maxlength="24" autocomplete="nickname" value="Player 1" /></div><div><span class="duration-heading">Time limit</span><div class="durations" role="group" aria-label="Time limit"><button type="button" class="duration" data-seconds="30" aria-pressed="false">30 sec</button><button type="button" class="duration" data-seconds="60" aria-pressed="true">1 min</button><button type="button" class="duration" data-seconds="120" aria-pressed="false">2 min</button><button type="button" class="duration" data-seconds="300" aria-pressed="false">5 min</button></div></div></div>
+<div class="controls"><button type="button" class="primary" id="start">Start challenge</button><button type="button" class="secondary" id="pause" disabled>Pause</button><button type="button" class="secondary" id="jump" disabled>Jump / Tap</button></div>
+<div class="hud" aria-live="off"><div class="hud-unit"><small>Score</small><strong id="score">0</strong></div><div class="hud-unit"><small>Time left</small><strong id="remaining">1:00</strong></div><div class="hud-unit"><small>Best score</small><strong id="best">—</strong></div></div>
+<div class="canvas-wrap"><canvas id="arena" width="900" height="320" aria-label="Arcade game arena. Comet Hop: press Space, Up, or the Jump button. Neon Targets: click or tap the glowing circles."></canvas><div class="screen-overlay" id="overlay"><h2 id="overlay-title">Ready to play?</h2><p id="overlay-caption">Comet Hop · press Space / ↑ or tap the game to jump</p></div></div>
+<div class="canvas-help"><span id="howto">⌨ Space or ↑ to jump • tap canvas on mobile</span><span>⏱ Timer pauses if you switch tabs</span></div>
+<div class="round-status" id="status" role="status" aria-live="polite"></div>
+</section>
+</div>
+<aside class="card" aria-label="High scores leaderboard">
+<div class="leaderhead"><h2>🏆 High Scores</h2><span>Local records</span></div>
+<p id="board-context">Comet Hop · 1 min</p><div id="leaderboard"></div>
+<div class="how"><h3>How the games work</h3><p><span class="pill">COMET HOP</span> Jump over laser blocks. Earn points by surviving and clearing obstacles. A collision ends the run early.</p><p><span class="pill">NEON TARGETS</span> Hit as many glowing targets as possible. Build a streak for bonus points; missed targets reset your streak.</p></div>
+<div class="callout"><strong>Preview leaderboard</strong><br />Scores currently save only in this browser, on this device. They are not verified, shared with other players, or eligible for rewards. Public leaderboards will require server-side validation and anti-cheat protections.</div>
+</aside>
+</div>
+</main>
+<footer>Gaming Network · Original mini-games · No payment or prizes · Test build, not a live contest</footer>
+<script>
+'use strict';
+(() => {
+const $ = id => document.getElementById(id);
+const canvas = $('arena'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height, GROUND = 262;
+const HIGHSCORE_KEY = 'gaming-network-arcade-local-scores-v1';
+let game = 'runner', duration = 60, round = null, rafId = null;
+let displayedMessage = '';
+function readScores() { try { const x = JSON.parse(localStorage.getItem(HIGHSCORE_KEY) || '{}'); return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; } catch { return {}; } }
+const highscores = readScores();
+function key() { return game + ':' + duration; }
+function timeText(seconds) { const s = Math.max(0,Math.ceil(seconds)); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function setText(id,text) { $(id).textContent = String(text); }
+function overlay(title,caption) { setText('overlay-title',title); setText('overlay-caption',caption); $('overlay').hidden = false; }
+function hideOverlay() { $('overlay').hidden = true; }
+function currentBest() { return Array.isArray(highscores[key()]) && highscores[key()].length ? highscores[key()][0].score : null; }
+function leaderboard() {
+ setText('board-context',(game === 'runner' ? 'Comet Hop' : 'Neon Targets')+' · '+({30:'30 seconds',60:'1 minute',120:'2 minutes',300:'5 minutes'}[duration]));
+ const list = $('leaderboard'); list.replaceChildren(); const rows = Array.isArray(highscores[key()]) ? highscores[key()] : [];
+ if (!rows.length) { const empty = document.createElement('div'); empty.className = 'leader-empty'; empty.textContent = 'No records for this challenge yet. Play the first round!'; list.append(empty); }
+ for (let i=0; i<Math.min(rows.length,10); i++) {
+  const x = rows[i], row = document.createElement('div'); row.className = 'leader-row';
+  const rank = document.createElement('span'); rank.className = 'rank'; rank.textContent = '#'+(i+1);
+  const person = document.createElement('span'); person.className = 'who'; person.textContent = x.name;
+  const date = document.createElement('small'); date.textContent = x.when || ''; person.append(date);
+  const points = document.createElement('span'); points.className = 'points'; points.textContent = Number(x.score).toLocaleString();
+  row.append(rank,person,points); list.append(row);
+ }
+ const best = currentBest(); setText('best',best == null ? '—' : best.toLocaleString());
+}
+function saveScore() {
+ if (!round || !Number.isFinite(round.score)) return;
+ const name = ($('player-name').value.trim() || 'Anonymous').slice(0,24);
+ const entry = {name, score:Math.max(0,Math.floor(round.score)), when:new Date().toLocaleDateString()};
+ const entries = Array.isArray(highscores[key()]) ? highscores[key()] : [];
+ entries.push(entry); entries.sort((a,b)=>Number(b.score)-Number(a.score)); highscores[key()] = entries.slice(0,10);
+ try { localStorage.setItem(HIGHSCORE_KEY,JSON.stringify(highscores)); } catch {} leaderboard();
+}
+function colorLine(x,y,x2,y2,color,width=2) { ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke(); }
+function roundRect(x,y,w,h,r,fill) {ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+function drawBackdrop(t) {
+ const bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#171a39');bg.addColorStop(1,'#0e1825');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<36;i++){const x=((i*181+31)%W),y=20+(i*53)%184, tw=(Math.sin(t*1.8+i)*.4+.6);ctx.fillStyle='rgba(223,217,255,'+(tw*.48)+')';ctx.fillRect(x,y,2,2)}
+ ctx.fillStyle='#181f39'; ctx.beginPath();ctx.moveTo(0,GROUND);for(let i=0;i<=8;i++){const x=i*(W/8), peak=195+Math.sin(i*4.6)*20;ctx.lineTo(x,peak)}ctx.lineTo(W,GROUND);ctx.fill();
+ ctx.fillStyle='#212638';ctx.fillRect(0,GROUND,W,H-GROUND);colorLine(0,GROUND,W,GROUND,'#7e688b',3);
+ for(let i=0;i<20;i++){const x=(i*77-Math.floor(t*110)%77+W)%W;roundRect(x,GROUND+21,28,3,2,'#34384e')}
+}
+function drawHero(y) {
+ ctx.save();ctx.shadowBlur=18;ctx.shadowColor='#f6cf86';roundRect(124,y,35,42,8,'#f0c77b');ctx.shadowBlur=0;
+ roundRect(130,y+9,23,17,5,'#4b4059');roundRect(144,y+14,5,5,2,'#8ef4c7');
+ roundRect(127,y+35,10,10,2,'#d1a563');roundRect(147,y+35,10,10,2,'#d1a563');
+ roundRect(118,y+19,7,16,2,'#e7ad77'); ctx.restore();
+}
+function spawnObstacle() { const w=22+Math.random()*22,h=27+Math.random()*28;
+ round.obstacles.push({x:W+30,w,h,passed:false}); round.spawnIn=.87+Math.random()*.85; }
+function runnerStep(dt) {
+ const player=round.player, t=round.elapsed;
+ round.spawnIn-=dt;if(round.spawnIn<=0)spawnObstacle();
+ player.vy+=2000*dt;player.y+=player.vy*dt;
+ if(player.y>=GROUND-42){player.y=GROUND-42;player.vy=0;player.grounded=true;}
+ const speed=330+Math.min(255,t*5.6);
+ for(const ob of round.obstacles){ob.x-=speed*dt;
+  const dx=ob.x+5,dy=GROUND-ob.h+5;
+  if(player.x+30>dx&&player.x+6<ob.x+ob.w-5&&player.y+37>dy&&player.y+6<GROUND-3){finish('crash');return;}
+  if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true;round.obstaclePoints+=85;}
+ }
+ round.obstacles=round.obstacles.filter(ob=>ob.x+ob.w>-20);
+ round.score=Math.floor(round.elapsed*16+round.obstaclePoints);
+}
+function runnerDraw() {
+ drawBackdrop(round?round.elapsed:0);
+ if(round){for(const ob of round.obstacles){ctx.save();ctx.shadowBlur=13;ctx.shadowColor='#dd77f0';roundRect(ob.x,GROUND-ob.h,ob.w,ob.h,5,'#d089ec');roundRect(ob.x+4,GROUND-ob.h+5,Math.max(ob.w-8,2),6,3,'#f2c4ff');ctx.restore()}drawHero(round.player.y)}else drawHero(GROUND-42);
+ colorLine(0,GROUND+7,W,GROUND+7,'#eac57870');
+}
+function targetGenerate() { const r=25+Math.random()*10;round.target={x:90+r+Math.random()*(W-180-r*2),y:45+r+Math.random()*(GROUND-70-r*2),r,life:1.65,maxLife:1.65}; }
+function targetStep(dt) { if(!round.target)targetGenerate(); const target=round.target; target.life-=dt;
+ if(target.life<=0){round.streak=0;targetGenerate();}
+}
+function targetDraw() {
+ drawBackdrop(round?round.elapsed:0);
+ if(!round)return;
+ ctx.fillStyle='#21395d60';ctx.fillRect(0,0,W,GROUND);
+ const target=round.target;if(target){ const pulse=(Math.sin(round.elapsed*14)+1)*2, radius=target.r+pulse;
+  ctx.save();ctx.shadowColor='#bd9bff';ctx.shadowBlur=20;ctx.strokeStyle='#b6a0ff';ctx.lineWidth=5;ctx.beginPath();ctx.arc(target.x,target.y,radius,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#7d5db9';ctx.beginPath();ctx.arc(target.x,target.y,target.r*.65,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#e5dbff';ctx.beginPath();ctx.arc(target.x,target.y,target.r*.28,0,Math.PI*2);ctx.fill();ctx.restore();
+  const remaining=Math.max(0,target.life/target.maxLife);ctx.fillStyle='#46415b';ctx.fillRect(target.x-28,target.y+radius+14,56,5);ctx.fillStyle='#91e8ba';ctx.fillRect(target.x-28,target.y+radius+14,56*remaining,5);
+ }
+ ctx.fillStyle='#ffffffb7';ctx.font='18px system-ui';ctx.fillText('STREAK '+round.streak,24,36);
+}
+function draw(){if(game==='runner')runnerDraw();else targetDraw();}
+function updateHud() {setText('score',Math.max(0,Math.floor(round?.score || 0)).toLocaleString());setText('remaining',timeText(round ? duration-round.elapsed : duration));}
+function finish(reason) {
+ if(!round||round.finished)return;round.finished=true;round.running=false;round.score=Math.max(0,Math.floor(round.score));
+ saveScore();updateHud();$('pause').disabled=true;$('jump').disabled=true;
+ const msg=reason==='time'?'Time is up!':reason==='crash'?'Laser collision!':'Run ended';
+ overlay(msg,'Final score: '+round.score.toLocaleString()+' · Choose Start challenge to try again.');
+ setText('status',msg+' Final score: '+round.score.toLocaleString()+(round.score>=currentBest()?' · Top score!':''));
+}
+function frame(now) {
+ rafId=null;
+ if(!round||!round.running||round.paused)return;
+ const dt=Math.min(.042,Math.max(0,(now-round.lastFrame)/1000));round.lastFrame=now;
+ round.elapsed=Math.max(0,(now-round.began-round.pauseTotal)/1000);
+ if(round.elapsed>=duration){round.elapsed=duration;finish('time');draw();return;}
+ if(game==='runner')runnerStep(dt);else targetStep(dt);
+ draw();updateHud();
+ if(round.running&&!round.paused)rafId=requestAnimationFrame(frame);
+}
+function start() {
+ if(rafId!=null)cancelAnimationFrame(rafId);
+ const now=performance.now();round={running:true,paused:false,finished:false,score:0,elapsed:0,began:now,pauseTotal:0,lastFrame:now,
+  player:{x:124,y:GROUND-42,vy:0,grounded:true},obstacles:[],spawnIn:1.05,obstaclePoints:0,target:null,streak:0};
+ if(game==='target')targetGenerate();hideOverlay();setText('status','Challenge in progress. Good luck!');$('pause').disabled=false;$('pause').textContent='Pause';$('jump').disabled=game!=='runner';
+ $('start').textContent='Restart challenge';updateHud();rafId=requestAnimationFrame(frame);
+}
+function pause() {
+ if(!round||!round.running)return;
+ if(round.paused){round.paused=false;round.pauseTotal+=performance.now()-round.pauseAt;round.lastFrame=performance.now();hideOverlay();$('pause').textContent='Pause';rafId=requestAnimationFrame(frame);}
+ else {round.paused=true;round.pauseAt=performance.now();if(rafId!=null)cancelAnimationFrame(rafId);rafId=null;overlay('Paused','Press Resume to continue your timed challenge.');$('pause').textContent='Resume';}
+}
+function jump() {if(game!=='runner'||!round||!round.running||round.paused)return;
+ const p=round.player;if(p.grounded){p.vy=-790;p.grounded=false;}}
+function clickTarget(event){if(game==='runner'){jump();return;}
+ if(!round||!round.running||round.paused||!round.target)return;
+ const bounds=canvas.getBoundingClientRect(),x=(event.clientX-bounds.left)*W/bounds.width,y=(event.clientY-bounds.top)*H/bounds.height;
+ const target=round.target,hit=Math.hypot(x-target.x,y-target.y)<=target.r+5;
+ if(hit){round.streak++;round.score+=100+Math.min(12,round.streak-1)*14+Math.floor(Math.max(0,target.life)*25);targetGenerate();}
+ else {round.streak=0;}updateHud();draw();}
+function changeGame(next) {if(round&&round.running){setText('status','Finish or restart the current challenge before changing games.');return;}
+ game=next;round=null;$('choose-runner').setAttribute('aria-pressed',String(game==='runner'));$('choose-target').setAttribute('aria-pressed',String(game==='target'));
+ $('jump').disabled=true;$('pause').disabled=true;$('start').textContent='Start challenge';
+ setText('howto',game==='runner'?'⌨ Space or ↑ to jump • tap canvas on mobile':'🎯 Tap or click the glowing targets before they disappear');
+ overlay('Ready to play?',game==='runner'?'Comet Hop · press Space / ↑ or tap the game to jump':'Neon Targets · tap or click the glowing circles');
+ setText('status','');leaderboard();updateHud();draw();}
+function setDuration(next) {if(round&&round.running){setText('status','Finish or restart this challenge before changing the time limit.');return;}
+ duration=next;document.querySelectorAll('[data-seconds]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.seconds)===duration)));
+ round=null;leaderboard();updateHud();draw();}
+$('start').addEventListener('click',start);$('pause').addEventListener('click',pause);$('jump').addEventListener('click',jump);
+$('choose-runner').addEventListener('click',()=>changeGame('runner'));$('choose-target').addEventListener('click',()=>changeGame('target'));
+document.querySelectorAll('[data-seconds]').forEach(btn=>btn.addEventListener('click',()=>setDuration(Number(btn.dataset.seconds))));
+canvas.addEventListener('pointerdown',clickTarget);
+document.addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='ArrowUp')&&game==='runner'&&round?.running&&!round.paused){e.preventDefault();jump();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&round?.running&&!round.paused)pause();});
+leaderboard();updateHud();draw();
+})();
+</script>
+</body>
+</html>
