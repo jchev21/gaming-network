@@ -1,0 +1,9 @@
+# Sensitive bot runtime data (do not commit)
+.env
+**/.env
+**/config.json
+**/hub_data.json
+**/state.json
+**/challenge-settings.json
+**/__pycache__/
+**/*.pyc
