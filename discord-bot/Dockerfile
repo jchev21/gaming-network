@@ -9,22 +9,22 @@ COPY xyz_brand_icons.py test_xyz_brand_icons.py bot.py challenge_commands.py ren
      owner_api.py member_grant_api.py member_grant_wire.py /app/
 COPY discord_bot_change_bridge /app/discord_bot_change_bridge
 COPY tests /app/tests
-# Surgical wire of Member grant into start_web without replacing Hub bot body.
+COPY community-content /app/community-content
+# Member route is integrated in committed bot.py but requires BOTH explicit
+# owner-controlled environment flags. Never inject a permissive route at build.
 RUN python - <<'PY'
 from pathlib import Path
-p = Path("bot.py")
-t = p.read_text()
-if "attach_member_grant" not in t:
-    old = 'async def start_web():\n    app = web.Application()\n    app.router.add_get("/", index)'
-    new = '''async def start_web():\n    app = web.Application()\n    # Issue #78 Member grant S2S (disabled unless GN_MEMBER_GRANT_ENABLED=true).\n    try:\n        from member_grant_wire import attach_member_grant\n        attach_member_grant(app, bot, DATA_DIR)\n        print("Member grant route registered (enabled only if GN_MEMBER_GRANT_ENABLED=true)")\n    except Exception as exc:\n        print("Member grant wire skipped:", type(exc).__name__)\n    app.router.add_get("/", index)'''
-    if old not in t:
-        raise SystemExit("start_web anchor not found in bot.py")
-    p.write_text(t.replace(old, new, 1))
-print("bot.py member-grant wire OK")
+t = Path("bot.py").read_text()
+assert "GN_MEMBER_GRANT_ROUTE_ENABLED" in t
+assert 'GN_MEMBER_GRANT_ENABLED' in t
+assert "attach_member_grant(app, bot, DATA_DIR)" in t
+import ast
+ast.parse(t)
+print("Member-grant route doubly gated in committed bot.py")
 PY
 # Offline unit tests (no Discord token, no live guild, no role grants)
 RUN python -m unittest test_xyz_brand_icons \
- && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight tests.test_overhaul_onboarding tests.test_member_grant_api -v \
+ && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight tests.test_overhaul_onboarding tests.test_community_content_pack tests.test_member_grant_api -v \
  && python -c "import ast; ast.parse(open('bot.py').read()); print('bot.py parse ok')" \
  && python -c "import member_grant_api, member_grant_wire; print('member_grant import ok')" \
  && python -c "from pathlib import Path; t=Path('bot.py').read_text(); assert 'attach_member_grant' in t; print('bot.py hook present')"
