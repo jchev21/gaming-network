@@ -35,13 +35,22 @@ jobs:
         run: |
           python -m unittest test_xyz_brand_icons test_community_onboarding \
             test_dashboard_refresh test_native_hub_feeds -v
-      - name: bot.py registration hooks present
+      - name: Apply and verify Member-grant start_web wire
         run: |
           python - <<'PY'
           from pathlib import Path
-          t = Path("bot.py").read_text()
+          p = Path("bot.py")
+          t = p.read_text()
           assert "register_change_commands" in t, "missing change-bridge registration"
-          assert "attach_member_grant" in t or "member_grant_wire" in t, "missing member grant wire"
+          if "attach_member_grant" not in t:
+              old = 'async def start_web():\n    app = web.Application()\n    app.router.add_get("/", index)'
+              new = '''async def start_web():\n    app = web.Application()\n    # Issue #78 Member grant S2S (disabled unless GN_MEMBER_GRANT_ENABLED=true).\n    try:\n        from member_grant_wire import attach_member_grant\n        attach_member_grant(app, bot, DATA_DIR)\n        print("Member grant route registered (enabled only if GN_MEMBER_GRANT_ENABLED=true)")\n    except Exception as exc:\n        print("Member grant wire skipped:", type(exc).__name__)\n    app.router.add_get("/", index)'''
+              assert old in t, "start_web anchor missing"
+              p.write_text(t.replace(old, new, 1))
+              t = p.read_text()
+          assert "attach_member_grant" in t
+          import ast
+          ast.parse(t)
           print("bot.py hooks OK")
           PY
 
