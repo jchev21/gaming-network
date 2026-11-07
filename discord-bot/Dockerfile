@@ -27,7 +27,7 @@ print("Member-grant route doubly gated in committed bot.py")
 PY
 # Offline unit tests (no Discord token, no live guild, no role grants)
 RUN python -m unittest test_xyz_brand_icons \
- && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight tests.test_overhaul_onboarding tests.test_community_content_pack tests.test_member_grant_api tests.test_member_grant_private_server -v \
+ && python -m unittest tests.test_change_bridge tests.test_batch_a_commands tests.test_batch_b_publish tests.test_batches_c_h tests.test_async_apply_replay_guard tests.test_change_owner_permissions tests.test_read_only_preflight tests.test_overhaul_onboarding tests.test_community_content_pack tests.test_member_grant_api tests.test_member_grant_private_server tests.test_onboarding_verify_link -v \
  && python -c "import ast; ast.parse(open('bot.py').read()); print('bot.py parse ok')" \
  && python -c "import member_grant_api, member_grant_wire; print('member_grant import ok')" \
  && python -c "from pathlib import Path; t=Path('bot.py').read_text(); assert 'serve_private_member_grant' in t; assert 'attach_member_grant(app, bot, DATA_DIR)' not in t; print('private grant hook present')"
