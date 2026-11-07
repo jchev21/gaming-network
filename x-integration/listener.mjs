@@ -271,7 +271,7 @@ export async function start(env = process.env) {
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
         credentials_configured: !!s.bearer, oauth_ready: auth.enabled,
-        discord_link_ready: discordLink.enabled, member_grants_enabled: false,
+        discord_link_ready: discordLink.enabled, member_grant_config_present: discordLink.reason === 'member_grants_configured',
         last_checked: state.last_checked, scan_in_progress: !!state.scan,
         daily_reads_used: state.budget?.used || 0, daily_reads_limit: s.maxReadsPerDay });
       return;
