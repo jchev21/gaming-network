@@ -1,0 +1,55 @@
+name: Discord Activity shell safety and syntax
+on:
+  pull_request:
+    paths:
+      - "index.html"
+      - "activity-sdk.js"
+      - "test_activity_interaction.py"
+      - ".github/workflows/activity-interaction-ci.yml"
+  push:
+    paths:
+      - "index.html"
+      - "activity-sdk.js"
+      - "test_activity_interaction.py"
+      - ".github/workflows/activity-interaction-ci.yml"
+jobs:
+  static-activity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Grok Activity structural/privacy tests
+        run: python3 test_activity_interaction.py
+      - name: Check module syntax
+        run: node --input-type=module --check < activity-sdk.js
+      - name: Extract and check embedded browser JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          snippets = re.findall(r'<script(?=[ >])[^>]*>(.*?)</script>', html, flags=re.S|re.I)
+          snippets = [s for s in snippets if s.strip()]
+          assert snippets, 'No embedded app JavaScript'
+          for i, snippet in enumerate(snippets):
+              Path('/tmp/gn-activity-%d.js' % i).write_text(snippet)
+          print('Extracted %d inline script blocks' % len(snippets))
+          PY
+          for f in /tmp/gn-activity-*.js; do node --check "$f"; done
+      - name: Confirm local-only read-only activity feed boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('index.html').read_text()
+          assert h.count('<!DOCTYPE html>')==1
+          assert h.count('</html>')==1
+          assert 'data-feed="public-x"' in h
+          assert 'Sample · not live API' in h
+          assert 'data-layout="8"' not in h
+          print('Basic Activity shell boundary OK')
+          PY
