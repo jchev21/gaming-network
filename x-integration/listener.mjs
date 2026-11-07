@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createXAuth } from './x-auth.mjs';
+import { createDiscordMemberAuth } from './discord-member-auth.mjs';
 import { createLobbyApi } from './lobby-api.mjs';
 
 /**
@@ -250,7 +251,21 @@ export async function start(env = process.env) {
   const stateFile = path.join(s.dataDir, 'x-mentions-state.json');
   const state = await readState(stateFile);
   const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
-  const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:requiredPublicOrigin(env)});
+  // Opt-in only. No change to existing X invitation flow until owner-configured
+  // Discord OAuth + verified numeric guild and Member role IDs are present.
+  const memberGate = env.GN_DISCORD_MEMBER_GATE_ENABLED === 'true'
+    ? createDiscordMemberAuth({
+        clientId:env.DISCORD_CLIENT_ID||'',
+        clientSecret:env.DISCORD_CLIENT_SECRET||'',
+        redirectUri:env.DISCORD_CALLBACK_URL||'',
+        guildId:env.DISCORD_GUILD_ID||'',
+        roleId:env.DISCORD_MEMBER_ROLE_ID||'',
+        xAuth:auth,
+      }) : null;
+  const lobbyApi = await createLobbyApi({
+    dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:requiredPublicOrigin(env),
+    memberAuthorized:memberGate ? (req => memberGate.requireMember(req)) : null,
+  });
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
@@ -269,12 +284,14 @@ export async function start(env = process.env) {
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
         credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked, scan_in_progress: !!state.scan,
-        daily_reads_used: state.budget?.used || 0, daily_reads_limit: s.maxReadsPerDay });
+        daily_reads_used: state.budget?.used || 0, daily_reads_limit: s.maxReadsPerDay,
+        discord_member_gate_enabled: !!memberGate });
       return;
     }
     // OAuth and lobbies are independent of the X mention polling schedule.
     try {
       if (await auth.handle(req, res, url)) return;
+      if (memberGate && await memberGate.handle(req, res, url)) return;
       if (await lobbyApi.handle(req, res, url)) return;
     } catch (err) {
       console.error('X auth/lobby handler failed:', err.code||err.message);
