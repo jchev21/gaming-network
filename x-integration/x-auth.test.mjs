@@ -48,7 +48,25 @@ try{
  });
  assert.equal(modCallback.status,302);
  assert.equal(modCallback.headers.get('location'),'/moderation');
- assert.equal(requests,4);
+ // Mobile web onboarding uses a same-origin, allowlisted X → Discord redirect.
+ const linkStart=await fetch(base+'/auth/x/start?next=%2Fauth%2Fdiscord%2Fstart',{redirect:'manual'});
+ assert.equal(linkStart.status,302);
+ const linkCookie=linkStart.headers.get('set-cookie').split(';')[0];
+ const linkState=new URL(linkStart.headers.get('location')).searchParams.get('state');
+ const linkCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(linkState)+'&code=c',{
+   headers:{cookie:linkCookie},redirect:'manual'
+ });
+ assert.equal(linkCallback.status,302);
+ assert.equal(linkCallback.headers.get('location'),'/auth/discord/start');
+ // External redirects and nearby path prefixes must NOT be accepted.
+ const rejectedStart=await fetch(base+'/auth/x/start?next='+encodeURIComponent('/auth/discord/start-evil'),{redirect:'manual'});
+ const rejectedCookie=rejectedStart.headers.get('set-cookie').split(';')[0];
+ const rejectedState=new URL(rejectedStart.headers.get('location')).searchParams.get('state');
+ const rejectedCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(rejectedState)+'&code=c',{
+   headers:{cookie:rejectedCookie},redirect:'manual'
+ });
+ assert.equal(rejectedCallback.headers.get('location'),'/setup');
+ assert.equal(requests,8);
  await fetch(base+'/auth/logout',{method:'POST',headers:{cookie:'gn_x_session='+sid}});
  const gone=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});
  assert.equal((await gone.json()).authenticated,false);
