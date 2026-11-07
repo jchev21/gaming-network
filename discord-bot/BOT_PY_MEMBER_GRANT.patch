@@ -1,0 +1,13 @@
+--- a/discord-bot/bot.py
++++ b/discord-bot/bot.py
+@@ start_web
+ async def start_web():
+     app = web.Application()
++    # Issue #78 Member grant S2S (disabled unless GN_MEMBER_GRANT_ENABLED=true).
++    try:
++        from member_grant_wire import attach_member_grant
++        attach_member_grant(app, bot, DATA_DIR)
++        print("Member grant route registered (enabled only if GN_MEMBER_GRANT_ENABLED=true)")
++    except Exception as exc:
++        print("Member grant wire skipped:", type(exc).__name__)
+     app.router.add_get("/", index)
