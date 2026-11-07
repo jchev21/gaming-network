@@ -1,0 +1,7 @@
+{
+  "name": "gaming-network-x-intake",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node listener.mjs", "test": "node listener.test.mjs" }
+}
