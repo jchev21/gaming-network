@@ -1,0 +1,8 @@
+Reviewed Perplexity ZIP locally, November 5, 2026
+- Original ZIP: 12 Node built-in tests PASS.
+- Reviewed downloadable ZIP after explicit in-person banner and test: 13 tests PASS.
+- JS syntax checks on original ZIP: PASS.
+- Browser UI smoke in this tool's runtime: UNAVAILABLE (browser navigation blocked by environment administrator, including local file and localhost).
+- Real in-person Discord/X acceptance: NOT RUN.
+- GitHub source-port tests: NOT EXECUTED in this local runtime; run node tools/launch-acceptance-console/test-console.mjs after checkout.
+- No merge, production deployment or paid API operations.
