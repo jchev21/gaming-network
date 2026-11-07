@@ -22,7 +22,7 @@ const hostCookie = 'gn_x_session=' + 'h'.repeat(43);
 const xAuth = {
   authenticated(req) {
     const c = String(req.headers?.cookie || '');
-    if (c.includes(hostCookie)) return { id: HOST_X, username: 'xyzhub' };
+    if (c.includes(hostCookie)) return { id: HOST_X, username: '_xyzhub_' };
     return null;
   },
 };
@@ -189,10 +189,10 @@ function mockDiscord({ pending = false, roles = [RULES], tokenOk = true } = {}) 
 }
 
 {
-  const name = 'official handle fixture remains xyzhub';
+  const name = 'official handle fixture remains @_xyzhub_';
   try {
     const me = xAuth.authenticated({ headers: { cookie: hostCookie } });
-    assert.equal(me.username, 'xyzhub');
+    assert.equal(me.username, '_xyzhub_');
     pass(name);
   } catch (e) { fail(name, e); }
 }
