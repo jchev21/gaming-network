@@ -241,6 +241,19 @@ class ReplayStore:
             return "DISCORD_ALREADY_BOUND_TO_OTHER_X"
         return None
 
+    def pending_identity_conflict(self, x_user_id: str, discord_user_id: str,
+                                  idempotency_key: str) -> Optional[str]:
+        self._purge()
+        for key, attempt in self._attempts.items():
+            if key == idempotency_key:
+                if (attempt.get("x") != x_user_id or
+                        attempt.get("discord") != discord_user_id):
+                    return "IDEMPOTENCY_IDENTITY_MISMATCH"
+                return "GRANT_PENDING_RECONCILIATION"
+            if attempt.get("x") == x_user_id or attempt.get("discord") == discord_user_id:
+                return "GRANT_ATTEMPT_IDENTITY_CONFLICT"
+        return None
+
     def commit_binding(self, x_user_id: str, discord_user_id: str) -> Optional[str]:
         conflict = self.check_binding_conflict(x_user_id, discord_user_id)
         if conflict:
@@ -330,7 +343,17 @@ def evaluate_grant(
     if conflict:
         return GrantResult(False, conflict, 409)
 
+    pending = store.pending_identity_conflict(
+        req.x_user_id, req.discord_user_id, req.idempotency_key
+    )
+    if pending and pending != "GRANT_PENDING_RECONCILIATION":
+        return GrantResult(False, pending, 409)
+
     if member_role.role_id in member.role_ids:
+        if pending == "GRANT_PENDING_RECONCILIATION":
+            return confirm_grant(
+                store, req.idempotency_key, member_after=member, member_role=member_role
+            )
         try:
             bind_err = store.commit_binding(req.x_user_id, req.discord_user_id)
             if bind_err:
@@ -340,10 +363,12 @@ def evaluate_grant(
             return GrantResult(False, "JOURNAL_UNAVAILABLE", 503)
         return GrantResult(True, "ALREADY_MEMBER", 200, already_had_role=True)
 
+    if pending:
+        return GrantResult(False, "GRANT_PENDING_RECONCILIATION", 409)
+
+    # Reserve the signed identity pair durably before calling Discord, but
+    # do NOT make a permanent 1:1 binding until the role is confirmed.
     try:
-        bind_err = store.commit_binding(req.x_user_id, req.discord_user_id)
-        if bind_err:
-            return GrantResult(False, bind_err, 409)
         store.begin_attempt(req.idempotency_key, req.x_user_id, req.discord_user_id)
     except DurableStoreError:
         return GrantResult(False, "JOURNAL_UNAVAILABLE", 503)
@@ -365,7 +390,13 @@ def confirm_grant(
             return GrantResult(False, "JOURNAL_UNAVAILABLE", 503)
         return GrantResult(False, "DISCORD_ROLE_NOT_PRESENT", 502,
                            detail="Discord add_roles returned but Member role not observed")
+    attempt = store.get_attempt(idempotency_key)
+    if not attempt or str(member_after.user_id) != str(attempt.get("discord")):
+        return GrantResult(False, "GRANT_ATTEMPT_IDENTITY_MISMATCH", 409)
     try:
+        bind_err = store.commit_binding(str(attempt["x"]), str(attempt["discord"]))
+        if bind_err:
+            return GrantResult(False, bind_err, 409)
         store.put_success(idempotency_key, code="GRANT_CONFIRMED", already_had_role=False)
     except DurableStoreError:
         return GrantResult(False, "JOURNAL_UNAVAILABLE", 503)
