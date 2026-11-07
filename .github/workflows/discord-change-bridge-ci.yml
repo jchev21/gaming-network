@@ -39,8 +39,8 @@ jobs:
           from pathlib import Path
           t = Path("bot.py").read_text()
           assert "register_change_commands" in t, "missing change-bridge registration"
-          assert "GN_MEMBER_GRANT_ROUTE_ENABLED" in t, "Member grant route must require explicit owner enabling"
-          assert "GN_MEMBER_GRANT_ENABLED" in t, "Member grant apply must be disabled by default"
+          assert "GN_MEMBER_GRANT_ROUTE_ENABLED" in Path("member_grant_private_server.py").read_text()
+          assert "GN_MEMBER_GRANT_ENABLED" in Path("member_grant_private_server.py").read_text()
           assert "serve_private_member_grant(bot, DATA_DIR)" in t
           assert "attach_member_grant(app, bot, DATA_DIR)" not in t
           import ast
