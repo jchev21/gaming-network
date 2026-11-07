@@ -1,7 +1,7 @@
-"""Optional registration helper for Hub bot start_web() — issue #78.
+"""Registration helper for Hub bot start_web() — issue #78.
 
-Import and call from bot.py only after owner review. Grants remain
-gated by GN_MEMBER_GRANT_ENABLED (default false).
+Grants remain gated by GN_MEMBER_GRANT_ENABLED (default false).
+Endpoint is /internal/member-grant (HMAC + rate limit); journal under DATA_DIR.
 """
 from __future__ import annotations
 
@@ -15,8 +15,6 @@ from member_grant_api import (
 
 
 def build_discord_resolver(bot):
-    """bot is the live discord.Client / commands.Bot instance."""
-
     class Ctx:
         def rules_role(self):
             guild = bot.get_guild(TARGET_GUILD_ID)
@@ -83,7 +81,11 @@ def build_discord_resolver(bot):
 
 
 def attach_member_grant(app, bot, data_dir: Path):
-    """Call from start_web after app routes are created."""
-    store = ReplayStore(Path(data_dir) / "member_grant_bindings.json")
-    register_member_grant_routes(app, store=store, guild_resolver=lambda: build_discord_resolver(bot))
+    """Call from start_web after app = web.Application()."""
+    journal = Path(data_dir) / "member_grant_journal.json"
+    store = ReplayStore(journal, require_persist=True)
+    register_member_grant_routes(
+        app, store=store, guild_resolver=lambda: build_discord_resolver(bot),
+        rate_limit_per_minute=30,
+    )
     return store
