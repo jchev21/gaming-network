@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createXAuth } from './x-auth.mjs';
 import { createLobbyApi } from './lobby-api.mjs';
+import { createDiscordLinkHttp } from './discord-member-link-http.mjs';
 
 /**
  * Isolated Gaming Network X mention intake.
@@ -251,6 +252,7 @@ export async function start(env = process.env) {
   const state = await readState(stateFile);
   const auth = await createXAuth({dataDir:s.dataDir,clientId:env.X_CLIENT_ID||'',clientSecret:env.X_CLIENT_SECRET||'',redirectUri:env.X_CALLBACK_URL||''});
   const lobbyApi = await createLobbyApi({dataDir:s.dataDir,auth,mentions:state,adminToken:s.admin,publicOrigin:requiredPublicOrigin(env)});
+  const discordLink = createDiscordLinkHttp({xAuth:auth,publicOrigin:requiredPublicOrigin(env),env});
   let busy = false;
   async function doPoll() {
     if (busy) return { error: 'poll already running' };
@@ -268,12 +270,15 @@ export async function start(env = process.env) {
       res.end(JSON.stringify(body)); };
     if (req.method === 'GET' && url.pathname === '/health') {
       send(200, { service: 'x-game-intake', running: true, auto_poll: s.enabled,
-        credentials_configured: !!s.bearer, oauth_ready: auth.enabled, last_checked: state.last_checked, scan_in_progress: !!state.scan,
+        credentials_configured: !!s.bearer, oauth_ready: auth.enabled,
+        discord_link_ready: discordLink.enabled, member_grants_enabled: false,
+        last_checked: state.last_checked, scan_in_progress: !!state.scan,
         daily_reads_used: state.budget?.used || 0, daily_reads_limit: s.maxReadsPerDay });
       return;
     }
     // OAuth and lobbies are independent of the X mention polling schedule.
     try {
+      if (await discordLink.handle(req, res, url)) return;
       if (await auth.handle(req, res, url)) return;
       if (await lobbyApi.handle(req, res, url)) return;
     } catch (err) {
