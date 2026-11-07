@@ -1,0 +1,216 @@
+{
+  "schema_version": "1.0.0",
+  "project": "XYZ.HUB",
+  "official_x_handle": "@_xyzhub_",
+  "source_date": "2026-11-07",
+  "manual_owner_review_required": true,
+  "discord_guild_id": "1566290427366080612",
+  "autopublish_enabled": false,
+  "live_channel_moves_enabled": false,
+  "role_grants_enabled": false,
+  "source_files": [
+    "batch-1-community.md",
+    "batch-2-other-sections.md",
+    "batch-3-launch-and-operator-copy.md"
+  ],
+  "channel_content": [
+    {
+      "id": "community_dashboard",
+      "destination_channel_name": "dashboard",
+      "existing_channel_id_last_audit": "1567827003414159365",
+      "intended_category": "COMMUNITY",
+      "source_markdown": "batch-1-community.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "community_announcements",
+      "destination_channel_name": "announcements",
+      "existing_channel_id_last_audit": "1567328326169796608",
+      "intended_category": "COMMUNITY",
+      "source_markdown": "batch-1-community.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "community_stage",
+      "destination_channel_name": "stage",
+      "existing_channel_id_last_audit": null,
+      "intended_category": "COMMUNITY",
+      "source_markdown": "batch-1-community.md",
+      "status": "MISSING_CHANNEL",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "games_x_games_and_events",
+      "destination_channel_name": "games-and-events",
+      "existing_channel_id_last_audit": null,
+      "intended_category": "GAMES & X",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "AMBIGUOUS_DUPLICATE_CHANNEL_NAME",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "games_x_codes",
+      "destination_channel_name": "codes",
+      "existing_channel_id_last_audit": "1566290771387093152",
+      "intended_category": "GAMES & X",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "games_x_gaming_videos",
+      "destination_channel_name": "gaming-videos",
+      "existing_channel_id_last_audit": "1568331258705219705",
+      "intended_category": "GAMES & X",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "algo_lab_algo_lab",
+      "destination_channel_name": "algo-lab",
+      "existing_channel_id_last_audit": "1567328368645644501",
+      "intended_category": "ALGO LAB",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "algo_lab_algo_lab_videos",
+      "destination_channel_name": "algo-lab-videos",
+      "existing_channel_id_last_audit": "1568331311750578396",
+      "intended_category": "ALGO LAB",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "education_education",
+      "destination_channel_name": "education",
+      "existing_channel_id_last_audit": "1567328365281808435",
+      "intended_category": "EDUCATION",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "education_education_videos",
+      "destination_channel_name": "education-videos",
+      "existing_channel_id_last_audit": "1568331344021561465",
+      "intended_category": "EDUCATION",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "all_firms_payout_reports",
+      "destination_channel_name": "payout-reports",
+      "existing_channel_id_last_audit": "1567328370562433074",
+      "intended_category": "ALL FIRMS",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "all_firms_scaling_vs_payouts",
+      "destination_channel_name": "scaling-vs-payouts",
+      "existing_channel_id_last_audit": "1567328371929645126",
+      "intended_category": "ALL FIRMS",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "feedback_suggestions",
+      "destination_channel_name": "suggestions",
+      "existing_channel_id_last_audit": "1567328378690740265",
+      "intended_category": "FEEDBACK",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "discord_studio_dashboard_videos",
+      "destination_channel_name": "dashboard-videos",
+      "existing_channel_id_last_audit": "1568331283401154580",
+      "intended_category": "DISCORD STUDIO",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "start_here_start_here",
+      "destination_channel_name": "start-here",
+      "existing_channel_id_last_audit": "1568331098239537274",
+      "intended_category": "START HERE",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "READY_FOR_OWNER_REVIEW",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": false
+    },
+    {
+      "id": "start_here_rules",
+      "destination_channel_name": "rules",
+      "existing_channel_id_last_audit": "1568085615722111117",
+      "intended_category": "START HERE",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "EXISTING_ALREADY_POSTED",
+      "permission_expectation": "Honor existing Discord channel permissions; never widen visibility",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": true
+    },
+    {
+      "id": "start_here_verify_x",
+      "destination_channel_name": "verify-x",
+      "existing_channel_id_last_audit": null,
+      "intended_category": "START HERE",
+      "source_markdown": "batch-2-other-sections.md",
+      "status": "EXISTING_ALREADY_POSTED",
+      "permission_expectation": "Rules Accepted only; restricted from @everyone",
+      "requires_fresh_inventory_and_owner_review": true,
+      "real_discord_published": true
+    }
+  ],
+  "launch_status": {
+    "native_rules_screening": "configured",
+    "rules_accepted_role": "configured",
+    "verify_x_channel": "configured",
+    "rules_and_x_instructions": "bot_reported_published",
+    "member_auto_grant": "disabled_pending_issue_78",
+    "discord_activity_real_test": "deferred_pending_issue_67",
+    "real_account_test": "deferred_issue_79",
+    "paid_x_polling": "disabled"
+  },
+  "publish_policy": "Owner-reviewed manual post only. Do not create or move channels, post to a duplicate destination or edit role overwrites."
+}

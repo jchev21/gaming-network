@@ -1,0 +1,27 @@
+--- discord-bot/bot.py
++++ discord-bot/bot.py
+@@ -14,6 +14,11 @@
+ from community_onboarding import X_OAUTH_ENTRY, COMMUNITY_RULES, validate_oauth_entry, public_onboarding_instructions
+ from discord import app_commands
+ from discord.ext import commands
++try:
++    from change_commands import register_change_commands
++except Exception as _change_cmds_err:
++    register_change_commands = None
++    print("change_commands import:", _change_cmds_err)
+ from aiohttp import web
+ 
+ ROOT = Path(__file__).resolve().parent
+@@ -80,6 +85,12 @@
+ intents.members = True
+ bot = commands.Bot(command_prefix="!", intents=intents)
+ tree = bot.tree
++if register_change_commands is not None:
++    try:
++        register_change_commands(tree, config=config, data_dir=DATA_DIR)
++        print("Change-bridge commands registered (/change-preview etc).")
++    except Exception as _e:
++        print("Change-bridge register:", _e)
+ 
+ def accent_color():
+     try:

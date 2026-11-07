@@ -1,0 +1,42 @@
+name: Discord Feedback Batch 1 (isolated)
+on:
+  push:
+    branches:
+      - 'review/perplexity-discord-feedback-*'
+  pull_request:
+    paths:
+      - 'discord-bot/gn_feedback/**'
+      - 'discord-bot/tests/test_gn_feedback.py'
+      - 'discord-bot/tests/test_gn_repair_partial.py'
+      - 'discord-bot/.env.feedback.example'
+      - '.github/workflows/discord-feedback-batch-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile importable feedback modules
+        run: python -m compileall -q discord-bot/gn_feedback discord-bot/tests
+      - name: Test complete Perplexity Batch 1 without network
+        run: python -m unittest discover -s discord-bot/tests -p 'test_gn_feedback.py' -v
+      - name: Test independently delivered repair modules
+        run: python -m unittest discover -s discord-bot/tests -p 'test_gn_repair_partial.py' -v
+      - name: Check default opt-in and no bot integration
+        run: |
+          python - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'discord-bot')
+          from gn_feedback.policy import Config
+          cfg = Config.from_env()
+          assert cfg.enabled is False and cfg.delivery is False, "Feedback worker must default OFF"
+          print("Default-off feedback integration confirmed")
+          PY

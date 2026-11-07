@@ -1,0 +1,62 @@
+name: Discord Dashboard Regression Checks
+
+on:
+  push:
+    branches:
+      - fix/discord-dashboard-response
+      - launch/discord-dashboard-rate-limit-guard
+      - feature/discord-native-hub-components-v2
+      - review/rules-x-onboarding-helper-1105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit test dashboard signatures
+        run: python -m unittest discover -s discord-bot -p 'test_dashboard_refresh.py' -v
+      - name: Unit test safe native X lobbies feed
+        run: python -m unittest discover -s discord-bot -p 'test_native_hub_feeds.py' -v
+      - name: Test community rules guidance and official X OAuth entry
+        run: python -m unittest discover -s discord-bot -p 'test_community_onboarding.py' -v
+      - name: Check all Python sources compile
+        run: python -m compileall -q discord-bot
+      - name: Build production Discord bot container
+        run: docker build -t gn-discord-hub-bot:ci discord-bot
+      - name: Verify Discord Components V2 runtime in deployed image
+        run: docker run --rm --entrypoint python gn-discord-hub-bot:ci -c "import discord; from native_hub_feeds import public_lobby_lines; assert hasattr(discord.ui, 'LayoutView'); assert hasattr(discord.ui, 'MediaGallery'); assert hasattr(discord.ui, 'TextDisplay'); import bot; v = bot.NativeChannelHubView('channel', 'Safe preview'); assert isinstance(v, discord.ui.LayoutView); assert v.is_persistent(); print('Native persistent in-channel Hub ready:', discord.__version__)"
+      - name: Check dashboard async handlers
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          tree = ast.parse(Path('discord-bot/bot.py').read_text())
+          handlers = {}
+          for node in ast.walk(tree):
+              if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+                  handlers[node.name] = node
+          for name in ('b_me', '_show', 'post_dashboard', 'refresh_all_dashboards'):
+              method = handlers.get(name)
+              assert method, f'Missing expected handler: {name}'
+              calls = [n for n in ast.walk(method) if isinstance(n, ast.Call)]
+              assert any(
+                  isinstance(c.func, ast.Attribute)
+                  and isinstance(c.func.value, ast.Name)
+                  and c.func.value.id == 'asyncio'
+                  and c.func.attr == 'to_thread'
+                  for c in calls
+              ), f'Missing nonblocking render in {name}'
+          modal = handlers.get('b_add')
+          assert modal, 'Missing Add Event handler'
+          modal_calls = [n for n in ast.walk(modal) if isinstance(n, ast.Call)]
+          assert any(isinstance(c.func, ast.Attribute) and c.func.attr == 'send_modal' for c in modal_calls), 'Add event must respond with a modal'
+          print('Discord dashboard regression checks passed')
+          PY
