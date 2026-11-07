@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - feature/x-host-workflow
+      - launch/public-lobby-feed-integration
+      - launch/x-oauth-concurrent-signins
   pull_request:
     paths:
       - 'x-integration/**'

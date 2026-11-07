@@ -5,14 +5,25 @@ import path from 'node:path';
 const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 const rnd = () => crypto.randomBytes(32).toString('base64url');
 const cookie = (req,k) => {
- const part=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
- return part ? decodeURIComponent(part.slice(k.length+1)) : null;
+ // Malformed percent escapes are untrusted input, not an authentication exception.
+ const header=String(req.headers.cookie||'');
+ if(header.length>8192)return null;
+ const part=header.split(';').map(s=>s.trim()).find(s=>s.startsWith(k+'='));
+ if(!part)return null;
+ const encoded=part.slice(k.length+1);
+ if(encoded.length>256)return null;
+ try{return decodeURIComponent(encoded)}catch{return null}
 };
 const send=(res,status,obj,headers={})=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',...headers});res.end(JSON.stringify(obj))};
 const setCookie=(key,val,age)=>key+'='+encodeURIComponent(val)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+age;
 const safeReturn=next=>{
  const s=String(next||'/setup');
- return /^\/(setup|high-scores|lobby|my-games)(?:\?|\/|$)/.test(s)&&!s.startsWith('//')&&!s.includes('\\')?s.slice(0,300):'/setup';
+ // Reject control characters in OAuth return targets, including CRLF in query strings.
+ // Node refuses control characters in Location headers; without this check a
+ // crafted next= value could consume a valid flow then fail its final redirect.
+ return (/^\/(setup|high-scores|lobby|my-games|moderation)(?:\?|\/|$)/.test(s) || s === '/auth/discord/start') &&
+   !s.startsWith('//') && !s.includes('\\') && !/[\u0000-\u001f\u007f]/.test(s)
+   ? s.slice(0,300) : '/setup';
 };
 export function createPKCE(){
  const verifier=rnd();
@@ -34,6 +45,15 @@ async function persist(file,data){
 }
 export async function createXAuth({clientId=process.env.X_CLIENT_ID||'',clientSecret=process.env.X_CLIENT_SECRET||'',redirectUri=process.env.X_CALLBACK_URL||'',dataDir=process.env.DATA_DIR||'./runtime',fetchImpl=fetch,now=Date.now,authorizationBase='https://x.com/i/oauth2/authorize',tokenUrl='https://api.x.com/2/oauth2/token',meUrl='https://api.x.com/2/users/me'}={}){
  const file=path.join(dataDir,'x-auth-sessions.json'),db=await readDb(file);
+ // OAuth starts, callbacks and logouts may arrive simultaneously. The normal
+ // atomic-rename writer uses one temporary file, so queue every write to avoid
+ // cross-request rename races or partially persisted PKCE/session records.
+ let writeQueue=Promise.resolve();
+ function persistDb(){
+  const job=writeQueue.then(()=>persist(file,db));
+  writeQueue=job.catch(()=>{});
+  return job;
+ }
  const enabled=Boolean(clientId&&redirectUri&&/^https:\/\//.test(redirectUri));
  const cleanup=()=>{const t=now();for(const [k,v] of Object.entries(db.flows))if(v.expires<=t)delete db.flows[k];for(const[k,v]of Object.entries(db.sessions))if(v.expires<=t)delete db.sessions[k]};
  function authenticated(req){
@@ -47,14 +67,14 @@ export async function createXAuth({clientId=process.env.X_CLIENT_ID||'',clientSe
   }
   if(req.method==='POST'&&url.pathname==='/auth/logout'){
    const raw=cookie(req,'gn_x_session');if(raw)delete db.sessions[sha(raw)];
-   await persist(file,db);send(res,200,{ok:true},{'set-cookie':setCookie('gn_x_session','',0)});return true;
+   await persistDb();send(res,200,{ok:true},{'set-cookie':setCookie('gn_x_session','',0)});return true;
   }
   if(req.method==='GET'&&url.pathname==='/auth/x/start'){
    if(!enabled){send(res,503,{error:'X sign-in not configured'});return true;}
    cleanup();if(Object.keys(db.flows).length>=2000){send(res,429,{error:'Too many sign-in attempts; retry shortly'},{'retry-after':'60'});return true;}
    const {verifier,challenge}=createPKCE(),state=rnd();
    db.flows[sha(state)]={verifier,expires:now()+600000,next:safeReturn(url.searchParams.get('next'))};
-   await persist(file,db);
+   await persistDb();
    res.writeHead(302,{location:authorizeUrl({clientId,redirectUri,state,challenge,base:authorizationBase}),'cache-control':'no-store','set-cookie':setCookie('gn_x_oauth_state',state,600)});res.end();
    return true;
   }
@@ -64,7 +84,7 @@ export async function createXAuth({clientId=process.env.X_CLIENT_ID||'',clientSe
    if(!state||!csrf||state!==csrf||!code){send(res,400,{error:'Invalid OAuth state'});return true;}
    const key=sha(state),flow=db.flows[key];
    if(!flow||flow.expires<=now()){send(res,400,{error:'Expired OAuth state'});return true;}
-   delete db.flows[key];await persist(file,db);
+   delete db.flows[key];await persistDb();
    const body=new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:redirectUri,client_id:clientId,code_verifier:flow.verifier});
    const headers={'content-type':'application/x-www-form-urlencoded'};
    if(clientSecret)headers.authorization='Basic '+Buffer.from(clientId+':'+clientSecret).toString('base64');
@@ -77,7 +97,7 @@ export async function createXAuth({clientId=process.env.X_CLIENT_ID||'',clientSe
     const info=(await me.json()).data||{};
     if(!/^\d{1,24}$/.test(String(info.id||''))||!info.username){send(res,502,{error:'Unverified X identity'});return true;}
     cleanup();const raw=rnd();db.sessions[sha(raw)]={xId:String(info.id),username:String(info.username).slice(0,40),expires:now()+86400000};
-    await persist(file,db);
+    await persistDb();
     res.writeHead(302,{location:flow.next,'cache-control':'no-store','set-cookie':[setCookie('gn_x_session',raw,86400),setCookie('gn_x_oauth_state','',0)]});res.end();return true;
    }catch(e){send(res,502,{error:'X sign-in temporarily unavailable'});return true;}
   }

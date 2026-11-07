@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/svg+xml" href="https://gaming-network-web-production.up.railway.app/xyz-logo-reveal.svg">
+<title>Gaming Network | Host Request Moderation</title>
+<style>
+:root{color-scheme:dark;--bg:#090b15;--card:#17182b;--card2:#20213a;--edge:#3e3b61;--text:#f7f3ff;--muted:#b5b2ce;--accent:#b39aff;--good:#83e4bc;--warn:#ffcc8a;font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse 700px 500px at 10% -15%,#41305f,transparent 80%),var(--bg);color:var(--text)}
+header,main,footer{width:min(1120px,100%);margin:auto;padding:20px clamp(16px,3vw,32px)}header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-bottom:1px solid #34314c}
+.brand{font-weight:900;letter-spacing:.13em}.brand b{color:var(--accent)}nav{display:flex;gap:18px;flex-wrap:wrap}a{color:#d3bfff}
+h1{font-size:clamp(29px,5vw,47px);letter-spacing:-.045em;line-height:1.1;margin:7px 0 12px}h2{font-size:17px;margin:0}
+p{margin:7px 0 14px}.muted{color:var(--muted)}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:850}
+.hero{padding:26px 0 18px;display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:22px;align-items:start}
+.panel{padding:22px;border:1px solid var(--edge);border-radius:19px;background:linear-gradient(150deg,#1d1c33,var(--card))}
+.tag{border:1px solid #6d5898;background:#302344;color:#dfd0ff;border-radius:999px;padding:4px 11px;font-size:11px;font-weight:850;display:inline-block}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0}
+button,.button{border:1px solid #9379d9;background:#7959c4;color:white;border-radius:11px;padding:11px 15px;cursor:pointer;font:inherit;font-weight:750;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.secondary{background:#282840;border-color:#585072;color:#efe9ff}
+button:disabled{opacity:.55;cursor:not-allowed}button:hover:not(:disabled),.button:hover{filter:brightness(1.12)}
+:focus-visible{outline:3px solid #ebd5ff;outline-offset:3px}
+#requests{display:grid;gap:12px}.request{background:var(--card);border:1px solid var(--edge);border-radius:17px;padding:18px 20px;min-width:0}
+.request header{border:0;padding:0;margin:0;width:auto;gap:8px}.excerpt{background:#0d1020;border-radius:12px;padding:12px 14px;overflow-wrap:anywhere;white-space:pre-wrap}
+small,.hint{color:var(--muted);font-size:12px}.request-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.notice{min-height:24px;color:var(--muted)}.error{color:#ffb4b4}.success{color:var(--good)}
+.private{border:1px solid #7e644b;background:#29251d;padding:15px;border-radius:13px;margin-top:12px}
+.private label{display:block;font-size:12px;font-weight:850;color:var(--warn);margin-bottom:8px}
+.private input{display:block;width:100%;border:1px solid #6d5b78;border-radius:9px;background:#0c0e19;color:white;padding:10px;font:12px/1.45 monospace}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.metric{background:#222139;border:1px solid #4c446b;border-radius:14px;padding:12px}.metric b{display:block;font-size:21px}.metric small{display:block}
+.hidden{display:none!important}
+@media(max-width:720px){.hero{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}header{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><div class="brand"><img src="https://gaming-network-web-production.up.railway.app/xyz-logo-reveal.svg" alt="XYZ logo reveal soon" width="48" height="48" style="width:48px;height:48px;object-fit:contain;vertical-align:middle;margin-right:8px">GAMING <b>NETWORK</b></div><nav><a href="/my-games">My Games</a><a href="/setup">Game Setup</a><a href="/high-scores">Arcade</a></nav></header>
+<main>
+<section class="hero" aria-labelledby="title">
+<div><div class="eyebrow">X · VERIFIED HOSTING · OWNER TOOLS</div><h1 id="title">Game request approvals</h1>
+<p class="muted">Review real X mentions and issue a single-host invitation. The invited person signs in with their own X account to configure the lobby. No automatic X posts or public redemption codes.</p>
+<div class="toolbar"><a id="signIn" class="button" href="/auth/x/start?next=%2Fmoderation">Sign in with X</a><button id="refresh" type="button" class="secondary" hidden>Refresh requests</button></div>
+<p id="status" class="notice" role="status" aria-live="polite">Checking your X session…</p></div>
+<div class="panel"><div class="eyebrow">Moderator access</div><h2 id="who">Not authenticated</h2>
+<p id="access" class="muted">This screen requires owner-authorized X identity. An ordinary player cannot view pending requests.</p>
+<div class="cards"><div class="metric"><b id="total">—</b><small>Requests</small></div><div class="metric"><b id="pending">—</b><small>Pending</small></div><div class="metric"><b id="hosted">—</b><small>Hosted</small></div></div>
+</div></section>
+<section aria-labelledby="queueTitle"><div class="toolbar" style="justify-content:space-between"><h2 id="queueTitle">Incoming game requests</h2><span class="tag">OWNER-ONLY</span></div>
+<div id="requests" aria-live="polite"></div></section>
+<section class="panel" style="margin-top:22px"><h2>How an approved game becomes live</h2>
+<p class="muted">1. A player mentions the configured Gaming Network X account. 2. Your read-only listener queues the eligible request. 3. You approve and privately send the invitation link to that account. 4. The verified host creates a signup lobby; other verified X users can join.</p>
+<p class="hint">This screen never logs or publishes private invitations, initiates paid X reads, or creates third-party Fortnite/Warzone matches. Keep invitation links private. Confirm actual match details using the host-only lobby controls.</p></section>
+</main>
+<footer class="muted">Gaming Network · Owner approval only · X sign-in required · No automated X replies</footer>
+<script>
+const $=id=>document.getElementById(id);
+let moderator=false,loading=false,requests=[];
+function note(text,error=false){$('status').textContent=text;$('status').className=error?'notice error':'notice'}
+async function json(url,options){const response=await fetch(url,{credentials:'same-origin',...options});let body={};try{body=await response.json()}catch{}return {ok:response.ok,status:response.status,body}}
+const fmtDate=s=>{const d=new Date(s);return Number.isNaN(+d)?'Time unavailable':d.toLocaleString()};
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
+function render(){
+ $('requests').replaceChildren();
+ $('total').textContent=String(requests.length);
+ $('pending').textContent=String(requests.filter(x=>!x.game_created).length);
+ $('hosted').textContent=String(requests.filter(x=>x.game_created).length);
+ if(!requests.length){$('requests').append(el('div','panel muted','No eligible game requests are queued. The X listener must be enabled separately with a safe paid-read limit.'));return}
+ for(const item of requests){
+  const article=el('article','request'),head=el('header');
+  const title=el('strong','',item.request_type||'game'),tag=el('span','tag',item.game_created?'LOBBY CREATED':item.invitation_active?'INVITED':'AWAITING REVIEW');
+  head.append(title,tag);
+  article.append(head,el('small','',fmtDate(item.created_at)+' · X post '+String(item.post_id).slice(0,24)));
+  article.append(el('p','excerpt',item.excerpt||'No description'));
+  const actions=el('div','request-actions');
+  if(!item.game_created){
+   const approve=el('button','',item.invitation_active?'Renew invitation':'Approve host request');
+   approve.type='button';
+   approve.addEventListener('click',()=>approveRequest(item,article,approve));
+   actions.append(approve);
+  }
+  const original=el('a','button secondary','View original X post');
+  original.target='_blank';original.rel='noopener noreferrer';
+  // Never place the recipient's X ID or invitation token in the public URL.
+  original.href='https://x.com/i/web/status/'+encodeURIComponent(item.post_id);
+  actions.append(original);article.append(actions);
+  $('requests').append(article);
+ }
+}
+async function approveRequest(item,article,button){
+ if(!moderator||loading||!confirm('Approve this X post for a private one-time host invitation?'))return;
+ loading=true;button.disabled=true;note('Creating private invitation…');
+ try{
+  const result=await json('/api/moderation/approve',{method:'POST',
+    headers:{'content-type':'application/json'},body:JSON.stringify({post_id:item.post_id})});
+  if(!result.ok){note(result.body.message||result.body.error||'Approval failed.',true);return}
+  if(typeof result.body.setupUrl!=='string'||!result.body.setupUrl.startsWith(location.origin+'/setup?invite=')){
+   note('Server response did not contain an approved same-origin invitation.',true);return
+  }
+  item.invitation_active=true;
+  article.querySelector('.private')?.remove();
+  const panel=el('div','private'),label=el('label','','Private host invitation — share only with the author of this X post');
+  const input=el('input');input.type='text';input.readOnly=true;input.value=result.body.setupUrl;input.setAttribute('aria-label','Private host invitation URL');
+  const copy=el('button','secondary','Copy invitation link');copy.type='button';
+  copy.addEventListener('click',async()=>{
+   try{await navigator.clipboard.writeText(input.value);note('Invitation copied. Privately send it to the verified original X author.')}
+   catch{input.focus();input.select();note('Clipboard unavailable. Copy the selected invitation text manually.',true)}
+  });
+  panel.append(label,input,copy);article.append(panel);button.textContent='Renew invitation';
+  note('One-time host invitation created. It is not publicly posted.');
+ }catch{note('Request failed. Nothing was posted to X.',true)}
+ finally{loading=false;button.disabled=false}
+}
+async function load(){
+ if(loading)return;
+ loading=true;$('refresh').disabled=true;note('Loading moderation queue…');
+ try{
+  const result=await json('/api/moderation/mentions');
+  if(result.status===403){moderator=false;$('requests').replaceChildren();$('access').textContent='This X account is not configured as moderator. Sign in, then set X_MODERATOR_USER_ID to your account ID in Railway. Never enter admin tokens on this page.';note('Moderator permission required.',true);return}
+  if(!result.ok){note('Could not load game requests.',true);return}
+  moderator=true;requests=Array.isArray(result.body.requests)?result.body.requests:[];
+  render();note('Requests loaded. Only the signed-in moderator can approve them.');
+ }catch{note('Game server unavailable.',true)}
+ finally{loading=false;$('refresh').disabled=false}
+}
+async function initialize(){
+ try{
+  const session=await json('/api/me');
+  if(!session.ok||!session.body.authenticated){
+   $('who').textContent='Sign-in required';$('access').textContent='Sign in with your authorized X account. Only the configured moderator can approve host requests.';note('Sign in with X to continue.');return
+  }
+  const user=session.body.user||{};
+  $('who').textContent='@'+String(user.username||'unknown');
+  $('access').textContent='Signed-in X account ID: '+String(user.id||'unknown')+'. This account must match X_MODERATOR_USER_ID configured privately in Railway.';
+  $('signIn').hidden=true;$('refresh').hidden=false;
+  await load();
+ }catch{note('Unable to check your X session.',true)}
+}
+$('refresh').addEventListener('click',load);
+initialize();
+</script>
+</body>
+</html>

@@ -20,12 +20,53 @@ try{
  const csrf=start.headers.get('set-cookie').split(';')[0];
  const state=new URL(start.headers.get('location')).searchParams.get('state');
  const bad=await fetch(base+'/auth/x/callback?state=bad&code=c',{headers:{cookie:csrf},redirect:'manual'});assert.equal(bad.status,400);
+ // User-supplied cookies may contain invalid URL escapes or invalid UTF-8.
+ // They must not crash the server, invalidate another user's pending flow,
+ // or create an authenticated session.
+ for(const malformed of ['%ZZ','%E0%A4%A']){
+  assert.equal(auth.authenticated({headers:{cookie:'gn_x_session='+malformed}}),null);
+  const invalidSession=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+malformed}});
+  assert.equal(invalidSession.status,200);
+  assert.equal((await invalidSession.json()).authenticated,false);
+  const invalidState=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{
+   headers:{cookie:'gn_x_oauth_state='+malformed},redirect:'manual'
+  });
+  assert.equal(invalidState.status,400);
+ }
  const cb=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{headers:{cookie:csrf},redirect:'manual'});
  assert.equal(cb.status,302);
  const sid=cb.headers.get('set-cookie').split('gn_x_session=')[1].split(';')[0];
  const me=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});assert.equal((await me.json()).user.id,'900001');
  const replay=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(state)+'&code=c',{headers:{cookie:csrf},redirect:'manual'});assert.equal(replay.status,400);
- assert.equal(requests,2);
+ // The owner console return path must survive a verified X OAuth callback.
+ const modStart=await fetch(base+'/auth/x/start?next=%2Fmoderation',{redirect:'manual'});
+ assert.equal(modStart.status,302);
+ const modCookie=modStart.headers.get('set-cookie').split(';')[0];
+ const modState=new URL(modStart.headers.get('location')).searchParams.get('state');
+ const modCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(modState)+'&code=c',{
+   headers:{cookie:modCookie},redirect:'manual'
+ });
+ assert.equal(modCallback.status,302);
+ assert.equal(modCallback.headers.get('location'),'/moderation');
+ // Mobile web onboarding uses a same-origin, allowlisted X → Discord redirect.
+ const linkStart=await fetch(base+'/auth/x/start?next=%2Fauth%2Fdiscord%2Fstart',{redirect:'manual'});
+ assert.equal(linkStart.status,302);
+ const linkCookie=linkStart.headers.get('set-cookie').split(';')[0];
+ const linkState=new URL(linkStart.headers.get('location')).searchParams.get('state');
+ const linkCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(linkState)+'&code=c',{
+   headers:{cookie:linkCookie},redirect:'manual'
+ });
+ assert.equal(linkCallback.status,302);
+ assert.equal(linkCallback.headers.get('location'),'/auth/discord/start');
+ // External redirects and nearby path prefixes must NOT be accepted.
+ const rejectedStart=await fetch(base+'/auth/x/start?next='+encodeURIComponent('/auth/discord/start-evil'),{redirect:'manual'});
+ const rejectedCookie=rejectedStart.headers.get('set-cookie').split(';')[0];
+ const rejectedState=new URL(rejectedStart.headers.get('location')).searchParams.get('state');
+ const rejectedCallback=await fetch(base+'/auth/x/callback?state='+encodeURIComponent(rejectedState)+'&code=c',{
+   headers:{cookie:rejectedCookie},redirect:'manual'
+ });
+ assert.equal(rejectedCallback.headers.get('location'),'/setup');
+ assert.equal(requests,8);
  await fetch(base+'/auth/logout',{method:'POST',headers:{cookie:'gn_x_session='+sid}});
  const gone=await fetch(base+'/api/me',{headers:{cookie:'gn_x_session='+sid}});
  assert.equal((await gone.json()).authenticated,false);
