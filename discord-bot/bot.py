@@ -98,6 +98,10 @@ def cname(interaction):
 @bot.event
 async def setup_hook():
     asyncio.create_task(start_web())
+    # Separate narrow private-only HTTP application, absent unless owner
+    # enables route + grants + valid HMAC secret. Dashboard remains loopback.
+    from member_grant_private_server import serve_private_member_grant
+    asyncio.create_task(serve_private_member_grant(bot, DATA_DIR))
     bot.add_view(DashboardView())
     bot.add_view(NativeChannelHubView())
     bot.add_view(AcceptRulesView())
@@ -1484,16 +1488,6 @@ async def start_web():
     # enables BOTH the route and the already fail-closed grant evaluator.
     # Existing TV dashboard remains bound to 127.0.0.1; NEVER expose it by
     # changing the listener to a public interface without separate review.
-    if (os.getenv("GN_MEMBER_GRANT_ROUTE_ENABLED", "false").lower() == "true"
-            and os.getenv("GN_MEMBER_GRANT_ENABLED", "false").lower() == "true"):
-        try:
-            from member_grant_wire import attach_member_grant
-            attach_member_grant(app, bot, DATA_DIR)
-            print("XYZ Member grant route registered (owner enabled both guards)")
-        except Exception:
-            # Never bring down all existing Hub commands for an unused
-            # Member grant feature. No partial route is considered ready.
-            print("XYZ Member grant route unavailable; role grants remain blocked")
     app.router.add_get("/", index)
     app.router.add_get("/api/feed", api_feed)
     app.router.add_get("/api/stats", api_stats)
