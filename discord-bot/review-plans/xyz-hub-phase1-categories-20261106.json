@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "guild_id": 1566290427366080612,
+  "proposal_id": "xyz-hub-overhaul-phase1-20261106",
+  "idempotency_token": "xyz-hub-20261106-phase1-public-categories-v1",
+  "snapshot_digest": "ac90b51f3d592173deff0fd5c19df42b2e191dbcd85e135d48d0ae7365941a68",
+  "created_at_unix": 1794007584,
+  "expires_at_unix": 1794180384,
+  "requester_note": "Create missing public categories only after reviewed owner approval. No moves, messages, permissions, deletes, or posts.",
+  "operations": [
+    {
+      "op_id": "create-community",
+      "op": "create_category",
+      "name": "COMMUNITY"
+    },
+    {
+      "op_id": "create-games-x",
+      "op": "create_category",
+      "name": "GAMES & X"
+    },
+    {
+      "op_id": "create-algo-lab",
+      "op": "create_category",
+      "name": "ALGO LAB"
+    },
+    {
+      "op_id": "create-all-firms",
+      "op": "create_category",
+      "name": "ALL FIRMS"
+    },
+    {
+      "op_id": "create-feedback",
+      "op": "create_category",
+      "name": "FEEDBACK"
+    },
+    {
+      "op_id": "create-discord-studio",
+      "op": "create_category",
+      "name": "DISCORD STUDIO"
+    }
+  ]
+}
