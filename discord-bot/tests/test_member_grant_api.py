@@ -86,7 +86,7 @@ class SecurityBlockerTests(unittest.TestCase):
         self.assertEqual(self.store._bindings, {})
         r2 = self.eval(make_req(nonce="nonce-legit-abcdefghijklmnopq"))
         self.assertTrue(r2.ok)
-        self.assertEqual(self.store._bindings[XID], DISCORD)
+        self.assertEqual(self.store._bindings, {}, "authorization alone must not bind")
 
     def test_missing_rules_does_not_bind(self):
         m = MemberSnapshot(user_id=DISCORD, pending=False, role_ids=[])
@@ -172,12 +172,49 @@ class SecurityBlockerTests(unittest.TestCase):
 
     def test_binding_conflict_after_legitimate_bind(self):
         self.eval(make_req(nonce="nonce-b1-abcdefghijklmnopqrst"))
+        confirm_grant(self.store, "idem-" + "a" * 32,
+                      member_after=screened([RULES.role_id, MEMBER.role_id]),
+                      member_role=MEMBER)
         other = make_req(
             nonce="nonce-b2-abcdefghijklmnopqrst",
             x_user_id="1000000000000000002",
             idempotency_key="idem-" + "b" * 32,
         )
         self.assertEqual(self.eval(other).code, "DISCORD_ALREADY_BOUND_TO_OTHER_X")
+
+    def test_failed_discord_grant_does_not_permanently_claim_account(self):
+        req = make_req(nonce="nonce-fail-discord-abcdefghij",
+                       idempotency_key="idem-" + "q" * 32)
+        self.assertTrue(self.eval(req).needs_discord_apply)
+        self.assertEqual(self.store._bindings, {})
+        abort_grant_attempt(self.store, req.idempotency_key)
+        self.assertEqual(self.store._bindings, {})
+        different_discord = "2000000000000000009"
+        retry = make_req(nonce="nonce-other-member-abcdefghijkl",
+                         idempotency_key="idem-" + "w" * 32,
+                         discord_user_id=different_discord)
+        member = MemberSnapshot(user_id=different_discord, pending=False,
+                                role_ids=[RULES.role_id])
+        self.assertTrue(self.eval(retry, member=member).needs_discord_apply)
+
+    def test_pending_grant_blocks_competing_identity_without_binding(self):
+        self.assertTrue(self.eval(make_req(nonce="nonce-pending-owner-abcdefghi")).needs_discord_apply)
+        other = make_req(nonce="nonce-pending-other-abcdefghi",
+                         idempotency_key="idem-" + "b" * 32,
+                         x_user_id="1000000000000000002")
+        self.assertEqual(self.eval(other).code, "GRANT_ATTEMPT_IDENTITY_CONFLICT")
+        self.assertEqual(self.store._bindings, {})
+
+    def test_crash_reconciliation_with_actual_member_role(self):
+        key = "idem-" + "z" * 32
+        req = make_req(nonce="nonce-crash-first-abcdefghijk", idempotency_key=key)
+        self.assertTrue(self.eval(req).needs_discord_apply)
+        restart = ReplayStore(self.path, require_persist=True)
+        next_req = make_req(nonce="nonce-crash-second-abcdefghij", idempotency_key=key)
+        result = self.eval(next_req, store=restart,
+                           member=screened([RULES.role_id, MEMBER.role_id]))
+        self.assertEqual(result.code, "GRANT_CONFIRMED")
+        self.assertEqual(restart._bindings[XID], DISCORD)
 
     def test_hierarchy(self):
         high = RoleSnapshot(MEMBER.role_id, "Member", position=50)
