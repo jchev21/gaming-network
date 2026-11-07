@@ -7,7 +7,7 @@ verified Discord+X dual-identity linking service.
 """
 from urllib.parse import urlparse, parse_qs
 
-X_OAUTH_ENTRY = "https://x-game-intake-production.up.railway.app/auth/x/start?next=%2Fmy-games"
+X_OAUTH_ENTRY = "https://x-game-intake-production.up.railway.app/auth/x/start?next=%2Fauth%2Fdiscord%2Fstart"
 
 COMMUNITY_RULES = (
     "Be respectful. No harassment, hate, threats or bullying.",
@@ -29,7 +29,7 @@ def validate_oauth_entry(url=X_OAUTH_ENTRY):
         and value.username is None
         and value.password is None
         and value.fragment == ""
-        and parse_qs(value.query) == {"next": ["/my-games"]}
+        and parse_qs(value.query) == {"next": ["/auth/discord/start"]}
     )
 
 def public_onboarding_instructions():
