@@ -15,11 +15,12 @@ COPY community-content /app/community-content
 RUN python - <<'PY'
 from pathlib import Path
 t = Path("bot.py").read_text()
-assert "GN_MEMBER_GRANT_ROUTE_ENABLED" in t
+private = Path("member_grant_private_server.py").read_text()
+assert 'GN_MEMBER_GRANT_ROUTE_ENABLED' in private
+assert 'GN_MEMBER_GRANT_ENABLED' in private
+assert 'GN_MEMBER_GRANT_HMAC_SECRET' in private
 assert "serve_private_member_grant" in t
 assert 'attach_member_grant(app, bot, DATA_DIR)' not in t
-assert 'GN_MEMBER_GRANT_ENABLED' in t
-assert "attach_member_grant(app, bot, DATA_DIR)" in t
 import ast
 ast.parse(t)
 print("Member-grant route doubly gated in committed bot.py")
